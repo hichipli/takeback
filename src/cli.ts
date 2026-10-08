@@ -104,7 +104,7 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
   }
   if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
   if (git) {
-    console.log(yellow(`   ! git moved since then: ${git.then} → ${git.now}.`))
+    console.log(yellow(git.then ? `   ! git moved since then: ${git.then} → ${git.now}.` : `   ! git has new commits since then (now ${git.now}).`))
     console.log(yellow('     Files come back as uncommitted changes; your commits stay.'))
   }
   if (dryRun) {

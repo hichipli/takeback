@@ -19,7 +19,7 @@ export interface TakeBack {
   /** What the take back did: A came back, D was removed, M was reverted, K was kept because the checkpoint ignores it. */
   changes: [status: string, path: string][]
   /** Set when the project's own git branch or commit moved since the checkpoint, as "branch sha7". */
-  git?: { then: string; now: string }
+  git?: { then?: string; now: string }
 }
 
 interface Store {
@@ -237,9 +237,13 @@ function commitIfChanged(s: Store, label: string): string | null {
 function gitMoved(s: Store, to: string): TakeBack['git'] {
   const then = trailers(s, to).git
   const now = gitPosition(s.root)
-  if (!then || !now || then === now) return undefined
   const brief = (p: string) => p.slice(0, p.length - 33) // "branch sha" with the sha cut to 7 characters
-  return { then: brief(then), now: brief(now) }
+  if (!now || then === now) return undefined
+  if (then) return { then: brief(then), now: brief(now) }
+  // No record: the checkpoint predates 0.4.1, or the project had no commits yet. Then a current
+  // commit made after the checkpoint is the sign that git moved.
+  const committed = Number(spawnSync('git', ['log', '-1', '--format=%ct'], { cwd: s.root, encoding: 'utf8', env: cleanEnv() }).stdout)
+  return committed > info(s, to).time.getTime() / 1000 ? { now: brief(now) } : undefined
 }
 
 /** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */

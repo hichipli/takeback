@@ -397,3 +397,19 @@ test('init stops asking to approve the Codex hooks once they are approved', () =
   writeFileSync(join(codexHome, 'config.toml'), enabled + '\n[hooks.state."takeback@takeback:hooks/hooks.json:user_prompt_submit:0:0"]\ntrusted_hash = "sha256:x"\n')
   assert.doesNotMatch(init(), /approve them/)
 })
+
+test('without a git record, a commit made after the checkpoint still gets a note', () => {
+  const dir = project({ 'app.js': 'v1' })
+  save(dir, 'before git') // not a git repo yet, so no record, like checkpoints from before 0.4.1
+  write(dir, 'app.js', 'v2')
+  const later = `${Math.floor(Date.now() / 1000) + 120} +0000`
+  const git = (...args: string[]) =>
+    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: dir, env: { ...process.env, GIT_COMMITTER_DATE: later } })
+  git('init', '-q', '-b', 'main')
+  git('add', '-A')
+  git('commit', '-qm', 'v2')
+
+  const preview = undo(dir, undefined, [], true)
+  assert.equal(preview.git?.then, undefined)
+  assert.match(preview.git!.now, /^main [0-9a-f]{7}$/)
+})
