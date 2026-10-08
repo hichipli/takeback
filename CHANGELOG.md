@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.5 (2026-10-08)
+
+- The npm page shows the English README again. 0.4.4 showed the Chinese one, which now lives in `docs/README.zh-CN.md`.
+
 ## 0.4.4 (2026-10-08)
 
 - A redesigned README, with pictures of what takeback restores, how it works and how agents use it. This release brings it to the npm page.

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.svg" width="88" alt="takeback">
+<img src="../assets/logo.svg" width="88" alt="takeback">
 
 # takeback
 
@@ -11,17 +11,17 @@
 
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../LICENSE)
 
-[English](README.md) · 简体中文
+[English](../README.md) · 简体中文
 
-<img src="assets/readme/zh-CN/banner.png" width="880" alt="AI 编程智能体的 Ctrl+Z。每一轮都有存档，一条命令就回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
+<img src="../assets/readme/zh-CN/banner.png" width="880" alt="AI 编程智能体的 Ctrl+Z。每一轮都有存档，一条命令就回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
 
 **支持终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。**<br>
 **其他智能体用 `takeback watch`。**<br>
 <sub>从不碰你的 `.git`，从不删除 `.gitignore` 保护的文件，数据不离开你的电脑。</sub>
 
-<img src="docs/demo.svg" width="860" alt="智能体通过 Bash 删掉了 scripts/，npx takeback 一条命令恢复">
+<img src="demo.svg" width="860" alt="智能体通过 Bash 删掉了 scripts/，npx takeback 一条命令恢复">
 
 </div>
 
@@ -44,7 +44,7 @@ npx takeback
 
 ## 为什么用 takeback
 
-<img src="assets/readme/zh-CN/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
+<img src="../assets/readme/zh-CN/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
 
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)），Codex CLI 则[去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。
 - **一次设置，所有项目、所有智能体。** `init` 覆盖终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。其他工具用 [`takeback watch`](#在哪里能用)。
@@ -53,9 +53,9 @@ npx takeback
 
 ## 工作原理
 
-<img src="assets/readme/zh-CN/how.png" width="880" alt="发送提示词时和每轮结束时各保存一个检查点。npx takeback 把所有文件恢复到提示词之前的样子。">
+<img src="../assets/readme/zh-CN/how.png" width="880" alt="发送提示词时和每轮结束时各保存一个检查点。npx takeback 把所有文件恢复到提示词之前的样子。">
 
-- 每个智能体两个钩子：每次提示词之前一个，每轮结束之后一个。插件在 [`hooks/hooks.json`](hooks/hooks.json) 里注册它们；没装 Claude Code 插件时，`init` 把同样两个钩子写进 `~/.claude/settings.json`。每次约 0.1 秒。
+- 每个智能体两个钩子：每次提示词之前一个，每轮结束之后一个。插件在 [`hooks/hooks.json`](../hooks/hooks.json) 里注册它们；没装 Claude Code 插件时，`init` 把同样两个钩子写进 `~/.claude/settings.json`。每次约 0.1 秒。
 - 检查点是 `~/.takeback/` 下一个独立 git 仓库里的提交。项目自己的 `.git`、分支、暂存区和 stash 都不会被碰，项目本身也不需要是 git 仓库。
 - 遵守你的 `.gitignore`，并始终跳过 `node_modules`、`.venv`、`__pycache__`。
 - 不是 git 仓库、并且超过 5,000 个文件或 500 MB 的文件夹（比如 `~/Downloads`），钩子不会自动开始存检查点。想在这种文件夹里用，运行一次 `takeback save` 即可。
@@ -68,14 +68,14 @@ npx takeback
 
 | 你想 | 终端 | Claude Code 插件 |
 | --- | --- | --- |
-| 撤销智能体的上一轮 | `takeback` | [`/takeback:undo`](claude-skills/undo/SKILL.md) |
+| 撤销智能体的上一轮 | `takeback` | [`/takeback:undo`](../claude-skills/undo/SKILL.md) |
 | 先看看会改什么 | `takeback -n` | `/takeback:undo -n` |
 | 再往前退一轮 | 再运行一次 `takeback` | 再运行一次 `/takeback:undo` |
 | 只撤销上一轮对某个文件的改动 | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
-| 查看所有检查点 | `takeback log` | [`/takeback:log`](claude-skills/log/SKILL.md) |
-| 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | [`/takeback:to 3f9c2a1`](claude-skills/to/SKILL.md) |
-| 以 patch 形式查看上一轮的改动 | `takeback diff` | [`/takeback:diff`](claude-skills/diff/SKILL.md) |
-| 查看某个文件在检查点时的内容 | `takeback show 3f9c2a1 src/app.ts` | [直接问 Claude](claude-skills/checkpoints/SKILL.md) |
+| 查看所有检查点 | `takeback log` | [`/takeback:log`](../claude-skills/log/SKILL.md) |
+| 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | [`/takeback:to 3f9c2a1`](../claude-skills/to/SKILL.md) |
+| 以 patch 形式查看上一轮的改动 | `takeback diff` | [`/takeback:diff`](../claude-skills/diff/SKILL.md) |
+| 查看某个文件在检查点时的内容 | `takeback show 3f9c2a1 src/app.ts` | [直接问 Claude](../claude-skills/checkpoints/SKILL.md) |
 | 手动保存一个检查点 | `takeback save "重构之前"` | |
 
 每次撤销都会告诉你怎么撤回这次撤销，所以退过头也不会丢东西。
@@ -89,7 +89,7 @@ $ takeback log
 
 ## 智能体也能用
 
-<img src="assets/readme/zh-CN/agents.png" width="880" alt="被问到 app.js 在上次修改之前是什么样，Codex 运行 takeback log 和 takeback show，从检查点里读出了旧文件。">
+<img src="../assets/readme/zh-CN/agents.png" width="880" alt="被问到 app.js 在上次修改之前是什么样，Codex 运行 takeback log 和 takeback show，从检查点里读出了旧文件。">
 
 "回到之前那个版本"对智能体来说其实很难：对话一长，它对早先文件的记忆会被压缩成摘要；git 里也只有提交过的内容。检查点精确保存了每一轮，智能体可以像你一样直接读取：
 
@@ -99,7 +99,7 @@ takeback show 3f9c2a1 src/app.ts    # 某个文件当时的原样
 takeback diff 3f9c2a1               # 从那以后改了什么
 ```
 
-装了插件后，智能体会自己想到去查检查点，并且只在你要求时才恢复，见 [Claude Code](claude-skills/checkpoints/SKILL.md) 和 [Codex](codex-skills/checkpoints/SKILL.md) 的技能说明。读取不需要写权限，在 Codex 的沙盒里也能用。其他智能体在你告诉它之后，也能运行同样的命令。
+装了插件后，智能体会自己想到去查检查点，并且只在你要求时才恢复，见 [Claude Code](../claude-skills/checkpoints/SKILL.md) 和 [Codex](../codex-skills/checkpoints/SKILL.md) 的技能说明。读取不需要写权限，在 Codex 的沙盒里也能用。其他智能体在你告诉它之后，也能运行同样的命令。
 
 ## 在哪里能用
 
@@ -217,12 +217,12 @@ git 对每个文件版本只存一份并压缩。旧检查点 30 天后自动清
 
 | 文件 | 做什么 |
 | --- | --- |
-| [`src/takeback.ts`](src/takeback.ts) | 检查点仓库：保存、撤销、diff、show 和 prune |
-| [`src/cli.ts`](src/cli.ts) | 命令、钩子入口和 `init` |
-| [`hooks/hooks.json`](hooks/hooks.json) | 两个插件共用的两个钩子 |
-| [`claude-skills/`](claude-skills/) | Claude Code 的斜杠命令，以及读取检查点的技能 |
-| [`codex-skills/`](codex-skills/) | Codex 用的同一个技能 |
-| [`test/takeback.test.ts`](test/takeback.test.ts) | 24 个测试，在 Linux、macOS 和 Windows 上运行 |
+| [`src/takeback.ts`](../src/takeback.ts) | 检查点仓库：保存、撤销、diff、show 和 prune |
+| [`src/cli.ts`](../src/cli.ts) | 命令、钩子入口和 `init` |
+| [`hooks/hooks.json`](../hooks/hooks.json) | 两个插件共用的两个钩子 |
+| [`claude-skills/`](../claude-skills/) | Claude Code 的斜杠命令，以及读取检查点的技能 |
+| [`codex-skills/`](../codex-skills/) | Codex 用的同一个技能 |
+| [`test/takeback.test.ts`](../test/takeback.test.ts) | 24 个测试，在 Linux、macOS 和 Windows 上运行 |
 
 ## 路线图
 
@@ -231,8 +231,8 @@ git 对每个文件版本只存一份并压缩。旧检查点 30 天后自动清
 
 ## 参与贡献
 
-欢迎提 issue 和 pull request，先看看 [CONTRIBUTING.md](CONTRIBUTING.md)。如果 takeback 救了你一下午，点个 ⭐ 能帮更多人找到它。
+欢迎提 issue 和 pull request，先看看 [CONTRIBUTING.md](../CONTRIBUTING.md)。如果 takeback 救了你一下午，点个 ⭐ 能帮更多人找到它。
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](../LICENSE)

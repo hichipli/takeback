@@ -13,7 +13,7 @@ One command puts it all back, including what it changed through Bash.
 [![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-English · [简体中文](README.zh-CN.md)
+English · [简体中文](docs/README.zh-CN.md)
 
 <img src="assets/readme/banner.png" width="880" alt="Ctrl+Z for AI coding agents. Every turn saved, one command back: npx takeback. 0.1 s per checkpoint, 0 dependencies, about 900 lines to read, 30 days of history.">
 
