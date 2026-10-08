@@ -4,7 +4,7 @@ import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, tooBigToStart, undo, type Agent } from './takeback.ts'
+import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, show, tooBigToStart, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
@@ -25,6 +25,7 @@ Take back
 Look around
   takeback diff [from] [to]     What \`takeback\` would undo, as a patch; or changes since a checkpoint
   takeback log [count]          Checkpoints, newest first
+  takeback show <id> <file>     A file exactly as it was at a checkpoint
   takeback save [message]       Save a checkpoint now
   takeback prune [--keep 7d]    Free disk space now (checkpoints older than ${KEEP_DAYS} days go on their own)
 
@@ -233,7 +234,7 @@ function pruneAll(keep?: string) {
   console.log(`${green('✓')} Freed ${size(freed)}. Kept the last ${plural(days, 'day')} of checkpoints and always the newest one.`)
 }
 
-const COMMANDS = ['undo', 'to', 'log', 'ls', 'diff', 'save', 'watch', 'init', 'prune', 'help']
+const COMMANDS = ['undo', 'to', 'log', 'ls', 'diff', 'show', 'save', 'watch', 'init', 'prune', 'help']
 
 function main() {
   const { values, positionals } = parseArgs({
@@ -286,6 +287,9 @@ function main() {
       }
       return process.stdout.write(patch)
     }
+    case 'show':
+      if (args.length !== 2) throw new Error('Usage: takeback show <checkpoint> <file>')
+      return process.stdout.write(show(process.cwd(), args[0], args[1]))
     case 'save': {
       if (values.hook) return hook(values.hook)
       const id = save(process.cwd(), args.join(' ') || 'manual save')

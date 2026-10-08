@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -12,7 +12,7 @@ process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'takeback-claude-home
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'takeback-codex-home-'))
 // Nor run the real codex CLI: `init` would install the Codex plugin from GitHub.
 process.env.PATH = process.env.PATH!.split(delimiter).filter((d) => !existsSync(join(d, 'codex'))).join(delimiter)
-const { diff, installHooks, list, prune, save, tooBigToStart, undo } = await import('../src/takeback.ts')
+const { diff, installHooks, list, prune, save, show, tooBigToStart, undo } = await import('../src/takeback.ts')
 
 const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.ts')
 
@@ -353,4 +353,34 @@ test('a take back says when the project moved to another commit or branch since 
   const r = spawnSync(process.execPath, [cli, 'diff'], { cwd: dir, encoding: 'utf8' })
   assert.match(r.stderr, /Changes since [0-9a-f]{7} · before turn .*`takeback` reverts them/)
   assert.match(r.stdout, /^diff --git/, 'stdout is only the patch')
+})
+
+test('show prints a file as it was at a checkpoint', () => {
+  const dir = project({ 'src/app.js': 'v1' })
+  const first = save(dir, 'before')!
+  write(dir, 'src/app.js', 'v2')
+  save(dir, 'after')
+  assert.equal(show(dir, first, 'src/app.js').toString(), 'v1')
+  assert.throws(() => show(dir, first, 'nope.js'), /isn't in checkpoint/)
+  const r = spawnSync(process.execPath, [cli, 'show', first.slice(0, 7), 'app.js'], { cwd: join(dir, 'src'), encoding: 'utf8' })
+  assert.equal(r.stdout, 'v1', 'paths are relative to where you run it')
+})
+
+test('reading works in a sandbox that cannot write to the store', { skip: process.platform === 'win32' }, () => {
+  const dir = project({ 'a.txt': 'one' })
+  const first = save(dir, 'before')!
+  write(dir, 'a.txt', 'two')
+  save(dir, 'after')
+  write(dir, 'a.txt', 'three') // unsaved, so previews stage it somewhere
+  const store = readdirSync(process.env.TAKEBACK_HOME!).find((d) => d.startsWith(basename(dir)))!
+  const lockDown = (mode: number) => spawnSync('chmod', ['-R', mode.toString(8), join(process.env.TAKEBACK_HOME!, store)])
+  lockDown(0o555)
+  try {
+    assert.equal(list(dir).length, 2)
+    assert.match(diff(dir).patch, /\+three/)
+    assert.deepEqual(undo(dir, undefined, [], true).changes, [['M', 'a.txt']])
+    assert.equal(show(dir, first, 'a.txt').toString(), 'one')
+  } finally {
+    lockDown(0o755)
+  }
 })

@@ -45,10 +45,24 @@ function cleanEnv(extra: Record<string, string> = {}) {
   return { ...env, ...extra }
 }
 
-/** The folder a directory's checkpoints cover: its git toplevel, or the directory itself. */
+const storeDir = (root: string) =>
+  join(storeHome(), `${basename(root) || 'root'}-${createHash('sha256').update(root).digest('hex').slice(0, 12)}`)
+
+/**
+ * The folder a directory's checkpoints cover: its git toplevel. Outside git, the nearest folder above that
+ * already has checkpoints, or else the directory itself.
+ */
 export function projectRoot(dir: string): string {
   const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: dir, encoding: 'utf8', env: cleanEnv() })
-  const root = r.status === 0 ? resolve(r.stdout.trim()) : realpathSync(dir)
+  let root = r.status === 0 ? resolve(r.stdout.trim()) : realpathSync(dir)
+  if (r.status !== 0) {
+    for (let d = dirname(root); d !== dirname(d); d = dirname(d)) {
+      if (existsSync(join(storeDir(d), 'HEAD'))) {
+        root = d
+        break
+      }
+    }
+  }
   const rel = relative(root, homedir())
   if (!rel.startsWith('..') && !isAbsolute(rel)) {
     throw new Error(`refusing to snapshot ${root} (your home folder or above). Run takeback inside a project folder.`)
@@ -74,8 +88,7 @@ function storeAt(root: string, gitDir: string): Store {
 
 function open(dir: string): Store {
   const root = projectRoot(dir)
-  const hash = createHash('sha256').update(root).digest('hex').slice(0, 12)
-  return storeAt(root, join(storeHome(), `${basename(root) || 'root'}-${hash}`))
+  return storeAt(root, storeDir(root))
 }
 
 function init(s: Store) {
@@ -131,6 +144,13 @@ function lock<T>(gitDir: string, fn: () => T): T {
 }
 
 const hasStore = (s: Store) => existsSync(join(s.gitDir, 'HEAD'))
+
+/** Reading takes no lock and writes nothing to the store, so it also works inside an agent's sandbox. */
+function readStore<T>(dir: string, fn: (s: Store) => T): T {
+  const s = open(dir)
+  if (!hasStore(s)) throw new Error(`No checkpoints for ${s.root} yet.`)
+  return fn(s)
+}
 
 /** Only `save` creates a store; reading commands in a folder without checkpoints leave nothing behind. */
 function withStore<T>(dir: string, fn: (s: Store) => T, create = false): T {
@@ -224,16 +244,26 @@ function gitMoved(s: Store, to: string): TakeBack['git'] {
 
 /** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */
 function withScratchIndex<T>(s: Store, fn: (env: Record<string, string>) => T): T {
-  const index = join(tmpdir(), `takeback-index-${process.pid}-${Date.now()}`)
+  const scratch = mkdtempSync(join(tmpdir(), 'takeback-'))
+  const index = join(scratch, 'index')
   // Keep the index's mtime: git rechecks files changed in the same second as the index only if it can tell.
   if (existsSync(join(s.gitDir, 'index'))) cpSync(join(s.gitDir, 'index'), index, { preserveTimestamps: true })
   try {
-    const env = { GIT_INDEX_FILE: index }
+    // New objects land in the scratch folder too; the store's own are read through an alternate.
+    const env = { GIT_INDEX_FILE: index, GIT_OBJECT_DIRECTORY: join(scratch, 'objects'), GIT_ALTERNATE_OBJECT_DIRECTORIES: join(s.gitDir, 'objects') }
+    mkdirSync(env.GIT_OBJECT_DIRECTORY)
     s.git(['add', '-A', '--ignore-errors'], env)
     return fn(env)
   } finally {
-    rmSync(index, { force: true })
+    rmSync(scratch, { recursive: true, force: true })
   }
+}
+
+/** A path the user gave, relative to the project root as git wants it. */
+function projectPath(s: Store, dir: string, p: string): string {
+  const rel = relative(s.root, resolve(realpathSync(dir), p))
+  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${p} is outside ${s.root}`)
+  return rel.split(sep).join('/')
 }
 
 /**
@@ -322,7 +352,7 @@ export function save(dir: string, label = 'manual save'): string | null {
 /** Newest first. */
 export function list(dir: string, limit = 20): Checkpoint[] {
   if (!hasStore(open(dir))) return []
-  return withStore(dir, (s) => {
+  return readStore(dir, (s) => {
     if (!rev(s, 'HEAD')) return []
     const out = s.git(['log', `-n${limit}`, '--shortstat', '--format=%x1e%H%x1f%ct%x1f%s%x1f'])
     return out.split('\x1e').filter(Boolean).map((chunk) => {
@@ -338,15 +368,10 @@ export function list(dir: string, limit = 20): Checkpoint[] {
  * ignores are never deleted. With `dryRun`, nothing changes: the result says what would happen.
  */
 export function undo(dir: string, target?: string, paths: string[] = [], dryRun = false): TakeBack {
-  return withStore(dir, (s) => {
+  const run = (s: Store): TakeBack => {
     const head = rev(s, 'HEAD')
     if (!head) throw new Error(`No checkpoints for ${s.root} yet.`)
-    const base = realpathSync(dir)
-    const rels = paths.map((p) => {
-      const rel = relative(s.root, resolve(base, p))
-      if (rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${p} is outside ${s.root}`)
-      return rel.split(sep).join('/')
-    })
+    const rels = paths.map((p) => projectPath(s, dir, p))
     const scope = ['--', ...(rels.length ? rels.map((r) => (r ? `:(literal)${r}` : '.')) : ['.'])]
 
     if (dryRun) {
@@ -379,7 +404,8 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
       s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', `takeback ${what}to ${to.slice(0, 7)}`, '-m', body])
     }
     return { to: info(s, to), saved: before, changes, git: gitMoved(s, to) }
-  })
+  }
+  return dryRun ? readStore(dir, run) : withStore(dir, run)
 }
 
 /**
@@ -387,7 +413,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
  * what a plain `takeback` would undo: usually the agent's last turn.
  */
 export function diff(dir: string, from?: string, to?: string, flags: string[] = []): { from: Checkpoint; patch: string } {
-  return withStore(dir, (s) => {
+  return readStore(dir, (s) => {
     const head = rev(s, 'HEAD')
     if (!head) throw new Error(`No checkpoints for ${s.root} yet.`)
     const resolved = (ref: string) => {
@@ -403,6 +429,17 @@ export function diff(dir: string, from?: string, to?: string, flags: string[] = 
       const a = from ? resolved(from) : pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0)
       return { from: info(s, a), patch: s.git(['diff', '--cached', ...flags, a], env) }
     })
+  })
+}
+
+/** A file exactly as it was at a checkpoint, to read an old version without restoring anything. */
+export function show(dir: string, id: string, path: string): Buffer {
+  return readStore(dir, (s) => {
+    const at = rev(s, id)
+    if (!at) throw new Error(`Unknown checkpoint: ${id}`)
+    const r = spawnSync('git', ['--git-dir', s.gitDir, 'show', `${at}:${projectPath(s, dir, path)}`], { env: cleanEnv(), maxBuffer: 1 << 30 })
+    if (r.status !== 0) throw new Error(`${path} isn't in checkpoint ${at.slice(0, 7)}.`)
+    return r.stdout
   })
 }
 
