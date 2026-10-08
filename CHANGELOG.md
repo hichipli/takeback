@@ -6,6 +6,7 @@
 - Every take back lists the files it restored, removed and reverted.
 - Checkpoints older than 30 days are dropped automatically. `takeback prune [--keep 7d]` frees space right away and removes checkpoints of folders that no longer exist.
 - Setup is one command: `npx takeback init` copies takeback to `~/.takeback/app`, so hooks take about 0.1 s without a global install.
+- `init` only sets up the agents installed on this computer and says what it skipped, so running it without Claude Code or Codex changes nothing.
 - Fixed: re-running `init` could add duplicate hooks, and `init --remove` could miss them, when `TAKEBACK_HOME` was set.
 
 ## 0.1.0 (2026-10-08)

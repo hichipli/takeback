@@ -158,6 +158,20 @@ test('init installs a private copy so hooks run without npx', () => {
   assert.deepEqual(settings(), {})
 })
 
+test('init only sets up agents that are installed', () => {
+  const missing = join(tmpdir(), `takeback-none-${process.pid}`)
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'takeback-claude-')), CODEX_HOME: missing }
+  const r = spawnSync(process.execPath, [cli, 'init'], { env, encoding: 'utf8' })
+  assert.match(r.stdout, /Codex: not installed, skipped/)
+  assert.ok(existsSync(join(env.CLAUDE_CONFIG_DIR, 'settings.json')))
+  assert.ok(!existsSync(missing), 'no config folder for an agent the user does not have')
+
+  const none = spawnSync(process.execPath, [cli, 'init'], { env: { ...env, CLAUDE_CONFIG_DIR: missing }, encoding: 'utf8' })
+  assert.equal(none.status, 0)
+  assert.match(none.stdout, /nothing was changed/)
+  assert.ok(!existsSync(missing))
+})
+
 test('prune keeps the newest checkpoint and deletes stores of deleted folders', () => {
   const home = process.env.TAKEBACK_HOME
   process.env.TAKEBACK_HOME = mkdtempSync(join(tmpdir(), 'takeback-prune-'))

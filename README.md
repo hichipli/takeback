@@ -18,13 +18,13 @@ English · [简体中文](README.zh-CN.md)
 
 ## Quick start
 
-Set it up once:
+takeback is a small command-line tool, and it protects your files wherever you use your agent: in a terminal, in the Claude or ChatGPT desktop app, or in your IDE ([details](#where-it-works)). Set it up once:
 
 ```bash
 npx takeback init
 ```
 
-From now on, Claude Code and Codex save a checkpoint before every prompt and after every turn, in every project. Nothing else to install or run.
+From now on, Claude Code and Codex save a checkpoint before every prompt and after every turn, in every project. Nothing else to install or run. `init` only touches the agents it finds on your computer and tells you what it skipped.
 
 When an agent breaks something, run this in the project folder:
 
@@ -33,7 +33,7 @@ npx takeback
 ```
 
 > [!TIP]
-> Inside Claude Code you don't even have to leave the chat: type `!npx takeback`. Claude sees what was restored.
+> No need to leave your session. In Claude Code in the terminal, type `!npx takeback` and Claude sees what was restored. In the desktop app, run it in the built-in terminal (<kbd>Ctrl</kbd>+<kbd>`</kbd>).
 
 ## Why
 
@@ -73,10 +73,11 @@ takeback protects the files on your computer that coding agents change.
 
 | Where you run the agent | Setup |
 | --- | --- |
-| Claude Code in the terminal, the desktop app, or VS Code / JetBrains | `npx takeback init` (they share `~/.claude/settings.json`) |
-| Codex CLI | `npx takeback init`, then trust the hooks once with `/hooks` |
-| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, the Codex app, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
-| ChatGPT, Claude.ai and other chat apps | Nothing to do. They don't change files on your disk. |
+| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init` |
+| Codex in the terminal or the ChatGPT desktop app | `npx takeback init`, then approve the new hooks once when Codex asks |
+| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
+| Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
+| Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
 
 ## How it works
 
