@@ -244,7 +244,7 @@ test('one plugin hook file serves Claude Code and Codex, and init defers to an e
   const { version } = json('package.json')
   for (const manifest of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(json(manifest).version, version, manifest)
   const codexPlugin = json('.codex-plugin/plugin.json')
-  for (const f of [codexPlugin.hooks, codexPlugin.interface.logo]) assert.ok(existsSync(join(root, f)), f)
+  for (const f of [codexPlugin.hooks, codexPlugin.skills, codexPlugin.interface.logo]) assert.ok(existsSync(join(root, f)), f)
   assert.equal(json('.agents/plugins/marketplace.json').plugins[0].source.path, './')
 
   const command: string = json('hooks/hooks.json').hooks.UserPromptSubmit[0].hooks[0].command
