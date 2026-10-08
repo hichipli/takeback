@@ -58,7 +58,7 @@ npx takeback
 | 只撤销上一轮对某个文件的改动 | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
 | 查看所有检查点 | `takeback log` | `/takeback:log` |
 | 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
-| 以 patch 形式查看上一轮的改动 | `takeback diff` | |
+| 以 patch 形式查看上一轮的改动 | `takeback diff` | `/takeback:diff` |
 | 手动保存一个检查点 | `takeback save "重构之前"` | |
 
 每次撤销都会告诉你怎么撤回这次撤销，所以退过头也不会丢东西。
@@ -75,7 +75,7 @@ takeback 也是 Claude Code 和 Codex 的插件，两边都会用名字列出它
 
 Claude Code 低于 2.1.275 的话，先运行 `/plugin marketplace add hichipli/takeback`，再运行 `/plugin install takeback@takeback`。
 
-同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
+同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to`、`/takeback:diff` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
 
 **Codex。** 只要电脑上有 `codex` 命令，`npx takeback init` 会自动帮你装好插件。想自己装的话：
 

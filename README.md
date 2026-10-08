@@ -62,7 +62,7 @@ Commands are shown without `npx`; add it if you haven't installed takeback globa
 | Undo the last turn for one file only | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
 | See every checkpoint | `takeback log` | `/takeback:log` |
 | Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
-| See the last turn as a patch | `takeback diff` | |
+| See the last turn as a patch | `takeback diff` | `/takeback:diff` |
 | Save a checkpoint by hand | `takeback save "before the refactor"` | |
 
 Every take back prints how to undo it, so you can't lose work by going back too far.
@@ -86,7 +86,7 @@ takeback is also a plugin for Claude Code and for Codex, so each agent lists its
 
 On Claude Code older than 2.1.275, run `/plugin marketplace add hichipli/takeback` first, then `/plugin install takeback@takeback`.
 
-You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to` and `/takeback:log`, and Claude sees what was taken back. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
+You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to`, `/takeback:diff` and `/takeback:log`, and Claude sees what was taken back. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
 
 **Codex.** `npx takeback init` installs the plugin for you when the `codex` command is available. To install it yourself:
 
