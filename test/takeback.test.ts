@@ -196,3 +196,59 @@ test('prune keeps the newest checkpoint and deletes stores of deleted folders', 
     process.env.TAKEBACK_HOME = home
   }
 })
+
+test('never deletes or loses files that a checkpoint ignores', () => {
+  const dir = project({ '.gitignore': '.env\n', '.env': 'v0', 'app.js': 'a' })
+  save(dir, 'before turn')
+  // The agent empties .gitignore, so .env lands in the next checkpoint.
+  write(dir, '.gitignore', '')
+  write(dir, '.env', 'v1')
+  write(dir, 'app.js', 'b')
+  const after = save(dir, 'after turn')!
+
+  const back = undo(dir)
+  assert.deepEqual(back.changes, [['K', '.env'], ['M', '.gitignore'], ['M', 'app.js']])
+  assert.equal(read(dir, '.env'), 'v1', '.env is ignored again and stays on disk')
+
+  // .env is untracked now. Restoring a checkpoint that has it must save today's copy first.
+  write(dir, '.env', 'v2')
+  const forward = undo(dir, after)
+  assert.equal(read(dir, '.env'), 'v1')
+  undo(dir, forward.saved, ['.env'])
+  assert.equal(read(dir, '.env'), 'v2')
+})
+
+test('dry run reports exactly what a take back would do, and changes nothing', () => {
+  const dir = project({ 'a.txt': 'a1', 'b.txt': 'b1' })
+  save(dir, 'before turn')
+  write(dir, 'a.txt', 'a2')
+  rmSync(join(dir, 'b.txt'))
+  write(dir, 'c.txt', 'new')
+  save(dir, 'after turn')
+
+  const preview = undo(dir, undefined, [], true)
+  assert.equal(read(dir, 'a.txt'), 'a2')
+  assert.equal(list(dir)[0].label, 'after turn', 'no checkpoint was saved')
+  assert.match(diff(dir), /-a1[\s\S]*\+a2/, 'diff shows what the last turn changed')
+  assert.deepEqual(undo(dir).changes, preview.changes)
+})
+
+test('the Claude Code plugin runs from source, matches the package version, and init defers to it', () => {
+  const root = join(dirname(cli), '..')
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin', 'plugin.json'), 'utf8')).version, pkg.version)
+
+  const command: string = JSON.parse(readFileSync(join(root, 'hooks', 'hooks.json'), 'utf8')).hooks.UserPromptSubmit[0].hooks[0].command
+  const dir = project({ 'a.txt': 'one' })
+  const payload = JSON.stringify({ cwd: dir, hook_event_name: 'UserPromptSubmit', prompt: 'refactor it' })
+  const h = spawnSync(command.replace('${CLAUDE_PLUGIN_ROOT}', root), { shell: true, input: payload, encoding: 'utf8' })
+  assert.equal(h.status, 0, h.stderr)
+  assert.equal(list(dir)[0].label, 'claude · before "refactor it"')
+
+  const claude = mkdtempSync(join(tmpdir(), 'takeback-claude-'))
+  writeFileSync(join(claude, 'settings.json'), JSON.stringify({ enabledPlugins: { 'takeback@takeback': true } }))
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: join(tmpdir(), `takeback-none-${process.pid}`) }
+  const r = spawnSync(process.execPath, [cli, 'init'], { env, encoding: 'utf8' })
+  assert.match(r.stdout, /covered by the takeback plugin/)
+  assert.equal(JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8')).hooks, undefined)
+})

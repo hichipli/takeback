@@ -19,10 +19,11 @@ Take back
   takeback                      Take back the last turn. Run it again to go further back.
   takeback <file>...            Take back the last turn for these files only
   takeback to <id> [file...]    Restore the project, or some files, to any checkpoint
+  -n, --dry-run                 With any of the above: show what would change, change nothing
 
 Look around
-  takeback log [-n 20]          Checkpoints, newest first
-  takeback diff [from] [to]     Changes since a checkpoint (default: the latest); --stat to summarize
+  takeback diff [from] [to]     What \`takeback\` would undo, as a patch; or changes since a checkpoint
+  takeback log [count]          Checkpoints, newest first
   takeback save [message]       Save a checkpoint now
   takeback prune [--keep 7d]    Free disk space now (checkpoints older than ${KEEP_DAYS} days go on their own)
 
@@ -59,6 +60,8 @@ function hook(agent: string) {
       payload = JSON.parse(readFileSync(0, 'utf8') || '{}')
     } catch {}
     const event = payload.hook_event_name
+    // Our own plugin commands: the take back saves the state it replaces, so skip the extra checkpoint.
+    if (payload.prompt?.trimStart().startsWith('/takeback:')) return
     const label =
       event === 'UserPromptSubmit' ? `${agent} · before "${oneLine(payload.prompt ?? '')}"`
       : event === 'Stop' ? `${agent} · after turn`
@@ -69,15 +72,24 @@ function hook(agent: string) {
   }
 }
 
-const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted' }
+const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted', K: 'kept' }
+const WOULD: Record<string, string> = { A: 'restore', D: 'remove', M: 'revert', K: 'keep' }
 
-function takeBack(target: string | undefined, paths: string[]) {
-  const { to, saved, changes } = undo(process.cwd(), target, paths)
+function takeBack(target: string | undefined, paths: string[], dryRun: boolean) {
+  const { to, saved, changes } = undo(process.cwd(), target, paths, dryRun)
   if (!changes.length) return console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
   const what = paths.length ? ` ${paths.join(', ')}` : ''
-  console.log(`${green('↩')}  Took back${what} to ${yellow(short(to.id))} ${dim('·')} ${to.label} ${dim(`· ${ago(to.time)}`)}`)
-  for (const [status, path] of changes.slice(0, 8)) console.log(`   ${dim((DID[status] ?? 'reverted').padEnd(10))}${path}`)
+  const head = dryRun ? `${yellow('?')}  Would take back` : `${green('↩')}  Took back`
+  console.log(`${head}${what} to ${yellow(short(to.id))} ${dim('·')} ${to.label} ${dim(`· ${ago(to.time)}`)}`)
+  for (const [status, path] of changes.slice(0, 8)) {
+    const note = status === 'K' ? dim('  (ignored in that checkpoint)') : ''
+    console.log(`   ${dim(((dryRun ? WOULD : DID)[status] ?? 'revert').padEnd(10))}${path}${note}`)
+  }
   if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
+  if (dryRun) {
+    const again = ['takeback', ...(target ? ['to', target] : []), ...paths].join(' ')
+    return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`takeback diff\` for the full patch.`))
+  }
   console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
 }
 
@@ -113,6 +125,16 @@ function watchFiles() {
 
 const NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' }
 
+/** The takeback Claude Code plugin brings its own hooks; installing ours too would save every checkpoint twice. */
+function claudePluginEnabled() {
+  try {
+    const { enabledPlugins = {} } = JSON.parse(readFileSync(hookFile('claude', 'global'), 'utf8'))
+    return Object.entries(enabledPlugins).some(([id, on]) => on === true && id.startsWith('takeback@'))
+  } catch {
+    return false
+  }
+}
+
 /** Without explicit agents, only touch the ones installed here: a chat-app user who runs init should get no stray config. */
 function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, detect: boolean) {
   const chosen = detect ? agents.filter((a) => existsSync(dirname(hookFile(a, 'global')))) : agents
@@ -124,6 +146,10 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
   for (const agent of agents) {
     if (!chosen.includes(agent)) {
       console.log(dim(`· ${NAMES[agent]}: not installed, skipped`))
+      continue
+    }
+    if (agent === 'claude' && !remove && claudePluginEnabled()) {
+      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin`)
       continue
     }
     const file = hookFile(agent, scope)
@@ -156,7 +182,8 @@ function main() {
     allowPositionals: true,
     options: {
       hook: { type: 'string' },
-      n: { type: 'string', short: 'n', default: '20' },
+      n: { type: 'boolean', short: 'n' },
+      'dry-run': { type: 'boolean' },
       keep: { type: 'string' },
       stat: { type: 'boolean' },
       project: { type: 'boolean' },
@@ -168,10 +195,11 @@ function main() {
   if (values.version) return console.log(VERSION)
   const [cmd, ...args] = positionals
   if (values.help || cmd === 'help') return console.log(HELP)
+  const dryRun = !!(values.n || values['dry-run'])
   if (!cmd || !COMMANDS.includes(cmd)) {
     // `takeback [file...]`; a typo like `takeback lgo` lands here too, so say so if it fails.
     try {
-      return takeBack(undefined, positionals)
+      return takeBack(undefined, positionals, dryRun)
     } catch (e) {
       const odd = positionals.find((p) => !existsSync(p))
       throw new Error(odd ? `${(e as Error).message}\n  ("${odd}" is not a command or an existing file; see takeback --help)` : (e as Error).message)
@@ -180,13 +208,13 @@ function main() {
 
   switch (cmd) {
     case 'undo':
-      return takeBack(undefined, args)
+      return takeBack(undefined, args, dryRun)
     case 'to':
       if (!args[0]) throw new Error('Which checkpoint? Pick an id from `takeback log`.')
-      return takeBack(args[0], args.slice(1))
+      return takeBack(args[0], args.slice(1), dryRun)
     case 'log':
     case 'ls':
-      return log(Number(values.n) || 20)
+      return log(Number(args[0]) || 20)
     case 'diff': {
       const flags = [...(tty ? ['--color=always'] : []), ...(values.stat ? ['--stat'] : [])]
       return process.stdout.write(diff(process.cwd(), args[0], args[1], flags))
