@@ -4,6 +4,8 @@
 
 - Claude Code plugin: commands show takeback's output as it is instead of a summary, and their hints name the plugin commands (`/takeback:undo`, `/takeback:to`, `/takeback:diff`) rather than terminal ones.
 - New `/takeback:diff` shows what `/takeback:undo` would undo, as a patch.
+- Take backs and previews say when the project's git branch or commit moved since the checkpoint: files come back as uncommitted changes, and commits stay.
+- `takeback diff` opens with a line naming the checkpoint and the command that reverts the changes. It goes to stderr, so a piped patch stays clean.
 
 ## 0.4.0 (2026-10-08)
 

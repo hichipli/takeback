@@ -127,6 +127,8 @@ takeback protects the files on your computer that coding agents change.
 
 **Does takeback replace git?** No. Commit what you want to keep. takeback is the safety net for the minutes between commits, when an agent is changing many files at once.
 
+**What if the agent already committed?** takeback puts the files back and leaves git history alone, so they show up as uncommitted changes. It says so whenever the branch or commit moved since the checkpoint. To undo the commit itself, use `git revert` or `git reset`.
+
 **What can't it take back?** Files your `.gitignore` excludes (such as `.env` or `dist/`), anything outside the project folder, and side effects like database writes, package installs or `git push`.
 
 **Does it slow my agent down?** The first checkpoint of a project stores a compressed copy of it, which takes a few seconds on large projects (3.6 s for an 850-file app). After that each hook call takes about 0.1 s.
