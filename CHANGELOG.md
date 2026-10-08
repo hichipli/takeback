@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 (2026-10-08)
+
+- Claude Code plugin: commands show takeback's output as it is instead of a summary, and their hints name the plugin commands (`/takeback:undo`, `/takeback:to`, `/takeback:diff`) rather than terminal ones.
+- New `/takeback:diff` shows what `/takeback:undo` would undo, as a patch.
+
 ## 0.4.0 (2026-10-08)
 
 - Codex plugin. `init` installs it when the `codex` command is available, so Codex and the ChatGPT app list takeback's hooks by name, with its logo, when they ask you to approve them. Without it they showed up as an anonymous "User config · Hook 1".
