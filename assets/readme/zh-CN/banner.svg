@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 560">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161b22"/><stop offset="1" stop-color="#0d1117"/></linearGradient>
+    <radialGradient id="glow" cx="0.25" cy="0.5" r="0.5"><stop offset="0" stop-color="#3fb950" stop-opacity="0.12"/><stop offset="1" stop-color="#3fb950" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1760" height="560" rx="32" fill="url(#bg)"/><rect width="1760" height="560" rx="32" fill="url(#glow)"/>
+  <rect x="1" y="1" width="1758" height="558" rx="31" fill="none" stroke="#30363d" stroke-width="2"/>
+  <text x="112" y="180" font-family="PingFang SC" font-weight="600" font-size="84" letter-spacing="2" fill="#e6edf3">AI 编程智能体的</text>
+  <text x="112" y="274" font-family="PingFang SC" font-weight="600" font-size="84" letter-spacing="2" fill="#e6edf3">Ctrl+Z</text>
+  <text x="114" y="358" font-family="PingFang SC" font-size="34" fill="#8b949e">每一轮都有存档，一条命令就回去。</text>
+  <text x="116" y="434" font-family="Menlo, PingFang SC" font-size="34" fill="#3fb950"><tspan fill="#6e7681">$</tspan><tspan dx="21">npx takeback</tspan></text>
+  <line x1="1020" y1="128" x2="1020" y2="432" stroke="#21262d" stroke-width="2"/>
+  <text x="1110" y="200" font-family="Avenir Next" font-weight="600" font-size="72" letter-spacing="-1" fill="#e6edf3">0.1<tspan font-family="PingFang SC" font-size="34" font-weight="500" fill="#8b949e" dx="12">秒</tspan></text>
+  <text x="1112" y="246" font-family="PingFang SC" font-size="28" fill="#8b949e">存一个检查点</text>
+  <text x="1410" y="200" font-family="Avenir Next" font-weight="600" font-size="72" letter-spacing="-1" fill="#e6edf3">0</text>
+  <text x="1412" y="246" font-family="PingFang SC" font-size="28" fill="#8b949e">依赖</text>
+  <text x="1110" y="368" font-family="Avenir Next" font-weight="600" font-size="72" letter-spacing="-1" fill="#e6edf3">~900</text>
+  <text x="1112" y="414" font-family="PingFang SC" font-size="28" fill="#8b949e">行代码，读得完</text>
+  <text x="1410" y="368" font-family="Avenir Next" font-weight="600" font-size="72" letter-spacing="-1" fill="#e6edf3">30<tspan font-family="PingFang SC" font-size="34" font-weight="500" fill="#8b949e" dx="12">天</tspan></text>
+  <text x="1412" y="414" font-family="PingFang SC" font-size="28" fill="#8b949e">历史保留</text>
+</svg>
+

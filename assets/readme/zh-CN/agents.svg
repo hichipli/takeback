@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 882">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161b22"/><stop offset="1" stop-color="#0d1117"/></linearGradient>
+  </defs>
+  <rect width="1760" height="882" rx="32" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1758" height="880" rx="31" fill="none" stroke="#30363d" stroke-width="2"/>
+  <text x="96" y="132" font-family="Menlo, PingFang SC" font-size="22" letter-spacing="3" fill="#3fb950">智能体也能用</text>
+  <text x="96" y="214" font-family="PingFang SC" font-weight="600" font-size="58" letter-spacing="0" fill="#e6edf3">智能体直接读出过去，不用凭记忆去猜。</text>
+  <line x1="96" y1="296" x2="1664" y2="296" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="360" font-family="Menlo, PingFang SC" font-size="24" fill="#6e7681">你</text>
+  <text x="268" y="360" font-family="PingFang SC" font-size="31" fill="#e6edf3" xml:space="preserve">app.js 在你上次修改之前是什么样？</text>
+  <line x1="96" y1="382" x2="1664" y2="382" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="446" font-family="Menlo, PingFang SC" font-size="24" fill="#6e7681">codex</text>
+  <rect x="268" y="406" width="1396" height="264" rx="14" fill="#010409" stroke="#21262d" stroke-width="2"/>
+  <text x="296" y="454" font-family="Menlo, PingFang SC" font-size="26" fill="#3fb950" xml:space="preserve">$ takeback log</text>
+  <text x="296" y="500" font-family="Menlo, PingFang SC" font-size="26" fill="#8b949e" xml:space="preserve">  71412bb  codex · after "把输出改成大写"</text>
+  <text x="296" y="546" font-family="Menlo, PingFang SC" font-size="26" fill="#8b949e" xml:space="preserve">  d9444d5  codex · before "把输出改成大写"</text>
+  <text x="296" y="592" font-family="Menlo, PingFang SC" font-size="26" fill="#3fb950" xml:space="preserve">$ takeback show d9444d5 app.js</text>
+  <text x="296" y="638" font-family="Menlo, PingFang SC" font-size="26" fill="#e6edf3" xml:space="preserve">console.log("v1: hello")</text>
+  <line x1="96" y1="676" x2="1664" y2="676" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="740" font-family="Menlo, PingFang SC" font-size="24" fill="#6e7681">codex</text>
+  <text x="268" y="740" font-family="PingFang SC" font-size="31" fill="#e6edf3" xml:space="preserve">从修改之前的检查点 d9444d5 读出来的。这个改动从没提交过。</text>
+  <line x1="96" y1="762" x2="1664" y2="762" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="824" font-family="PingFang SC" font-size="27" fill="#8b949e">长对话里，对旧文件的记忆会被压缩成摘要；git 里只有提交过的内容。检查点保存了每一轮。</text>
+</svg>
+

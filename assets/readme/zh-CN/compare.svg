@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 952">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161b22"/><stop offset="1" stop-color="#0d1117"/></linearGradient>
+  </defs>
+  <rect width="1760" height="952" rx="32" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1758" height="950" rx="31" fill="none" stroke="#30363d" stroke-width="2"/>
+  <text x="96" y="132" font-family="Menlo, PingFang SC" font-size="22" letter-spacing="3" fill="#3fb950">为什么用 TAKEBACK</text>
+  <text x="96" y="214" font-family="PingFang SC" font-weight="600" font-size="58" letter-spacing="0" fill="#e6edf3">自带的撤销，管不到智能体在 Bash 里做的事。</text>
+  <rect x="1444" y="242" width="220" height="584" rx="18" fill="#3fb950" fill-opacity="0.07"/>
+  <text x="1084" y="282" text-anchor="middle" font-family="Menlo, PingFang SC" font-size="24" fill="#8b949e">Claude /rewind</text>
+  <text x="1324" y="282" text-anchor="middle" font-family="Menlo, PingFang SC" font-size="24" fill="#8b949e">git</text>
+  <text x="1554" y="282" text-anchor="middle" font-family="Menlo, PingFang SC" font-size="24" fill="#3fb950">takeback</text>
+  <line x1="96" y1="300" x2="1664" y2="300" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="354.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">通过智能体文件工具做的修改</text>
+  <path d="M1071 343.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1324" y="352.0" text-anchor="middle" font-family="PingFang SC" font-size="26" fill="#8b949e">提交过才有</text>
+  <path d="M1541 343.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="386" x2="1664" y2="386" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="440.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">通过 Bash 改动的文件：rm、mv、代码生成</text>
+  <path d="M1074 419.0 l20 20 M1094 419.0 l-20 20" fill="none" stroke="#f85149" stroke-width="5" stroke-linecap="round"/>
+  <text x="1324" y="438.0" text-anchor="middle" font-family="PingFang SC" font-size="26" fill="#8b949e">提交过才有</text>
+  <path d="M1541 429.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="472" x2="1664" y2="472" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="526.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">子智能体做的修改</text>
+  <path d="M1074 505.0 l20 20 M1094 505.0 l-20 20" fill="none" stroke="#f85149" stroke-width="5" stroke-linecap="round"/>
+  <text x="1324" y="524.0" text-anchor="middle" font-family="PingFang SC" font-size="26" fill="#8b949e">提交过才有</text>
+  <path d="M1541 515.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="558" x2="1664" y2="558" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="612.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">其他会话和其他智能体的修改</text>
+  <path d="M1074 591.0 l20 20 M1094 591.0 l-20 20" fill="none" stroke="#f85149" stroke-width="5" stroke-linecap="round"/>
+  <text x="1324" y="610.0" text-anchor="middle" font-family="PingFang SC" font-size="26" fill="#8b949e">提交过才有</text>
+  <path d="M1541 601.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="644" x2="1664" y2="644" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="698.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">发提示词前什么都不用记着做</text>
+  <path d="M1071 687.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1314 677.0 l20 20 M1334 677.0 l-20 20" fill="none" stroke="#f85149" stroke-width="5" stroke-linecap="round"/>
+  <path d="M1541 687.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="730" x2="1664" y2="730" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="784.0" font-family="PingFang SC" font-size="31" fill="#e6edf3">适用于 Codex、Cursor 等任何智能体</text>
+  <path d="M1074 763.0 l20 20 M1094 763.0 l-20 20" fill="none" stroke="#f85149" stroke-width="5" stroke-linecap="round"/>
+  <path d="M1311 773.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1541 773.0 l9 9 l17 -18" fill="none" stroke="#3fb950" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="96" y1="816" x2="1664" y2="816" stroke="#21262d" stroke-width="2"/>
+  <text x="96" y="894" font-family="PingFang SC" font-size="27" fill="#8b949e">takeback 每一轮都给整个项目文件夹拍快照，不管是谁改的文件。</text>
+</svg>
+

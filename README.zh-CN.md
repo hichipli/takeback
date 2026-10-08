@@ -1,17 +1,25 @@
 <div align="center">
 
-<img src="assets/readme/banner.png" width="880" alt="takeback：AI 编程智能体的 Ctrl+Z。运行 npx takeback。">
+<img src="assets/logo.svg" width="88" alt="takeback">
 
-**智能体跑了 `rm -rf`、改坏了 40 个文件，或者"修好"了不该动的地方？<br>
-一条命令全部恢复，包括它通过 Bash 改动的文件。**
+# takeback
 
-[![npm](https://img.shields.io/npm/v/takeback?color=3fb950)](https://www.npmjs.com/package/takeback)
+**AI 编程智能体的 Ctrl+Z。**
+
+智能体跑了 `rm -rf`、改坏了 40 个文件，或者"修好"了不该动的地方？<br>
+一条命令全部恢复，包括它通过 Bash 改动的文件。
+
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
-[![Dependencies: 0](https://img.shields.io/badge/dependencies-0-3fb950)](package.json)
-[![Node](https://img.shields.io/node/v/takeback?color=3fb950)](package.json)
-[![License: MIT](https://img.shields.io/badge/license-MIT-3fb950)](LICENSE)
+[![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[快速开始](#快速开始) · [为什么](#为什么用-takeback) · [工作原理](#工作原理) · [命令](#命令) · [智能体](#智能体也能用) · [常见问题](#常见问题) · [English](README.md)
+[English](README.md) · 简体中文
+
+<img src="assets/readme/zh-CN/banner.png" width="880" alt="AI 编程智能体的 Ctrl+Z。每一轮都有存档，一条命令就回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
+
+**支持终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。**<br>
+**其他智能体用 `takeback watch`。**<br>
+<sub>从不碰你的 `.git`，从不删除 `.gitignore` 保护的文件，数据不离开你的电脑。</sub>
 
 <img src="docs/demo.svg" width="860" alt="智能体通过 Bash 删掉了 scripts/，npx takeback 一条命令恢复">
 
@@ -36,7 +44,7 @@ npx takeback
 
 ## 为什么用 takeback
 
-<img src="assets/readme/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
+<img src="assets/readme/zh-CN/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
 
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)），Codex CLI 则[去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。
 - **一次设置，所有项目、所有智能体。** `init` 覆盖终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。其他工具用 [`takeback watch`](#在哪里能用)。
@@ -45,7 +53,7 @@ npx takeback
 
 ## 工作原理
 
-<img src="assets/readme/how.png" width="880" alt="发送提示词时和每轮结束时各保存一个检查点。npx takeback 把所有文件恢复到提示词之前的样子。">
+<img src="assets/readme/zh-CN/how.png" width="880" alt="发送提示词时和每轮结束时各保存一个检查点。npx takeback 把所有文件恢复到提示词之前的样子。">
 
 - 每个智能体两个钩子：每次提示词之前一个，每轮结束之后一个。插件在 [`hooks/hooks.json`](hooks/hooks.json) 里注册它们；没装 Claude Code 插件时，`init` 把同样两个钩子写进 `~/.claude/settings.json`。每次约 0.1 秒。
 - 检查点是 `~/.takeback/` 下一个独立 git 仓库里的提交。项目自己的 `.git`、分支、暂存区和 stash 都不会被碰，项目本身也不需要是 git 仓库。
@@ -81,7 +89,7 @@ $ takeback log
 
 ## 智能体也能用
 
-<img src="assets/readme/agents.png" width="880" alt="被问到 app.js 在上次修改之前是什么样，Codex 运行 takeback log 和 takeback show，从检查点里读出了旧文件。">
+<img src="assets/readme/zh-CN/agents.png" width="880" alt="被问到 app.js 在上次修改之前是什么样，Codex 运行 takeback log 和 takeback show，从检查点里读出了旧文件。">
 
 "回到之前那个版本"对智能体来说其实很难：对话一长，它对早先文件的记忆会被压缩成摘要；git 里也只有提交过的内容。检查点精确保存了每一轮，智能体可以像你一样直接读取：
 
