@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 (2026-10-08)
+
+- The "git moved" note also covers checkpoints that have no git record: ones saved before 0.4.1, or before the project's first commit. If the current commit was made after the checkpoint, takeback says so.
+- Windows: a folder keeps the same checkpoints when it becomes a git repo. Before, a short 8.3 path (like `RUNNER~1`) and git's long path counted as two different folders.
+
 ## 0.4.1 (2026-10-08)
 
 - Claude Code plugin: commands show takeback's output as it is instead of a summary, and their hints name the plugin commands (`/takeback:undo`, `/takeback:to`, `/takeback:diff`) rather than terminal ones.

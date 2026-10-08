@@ -19,7 +19,7 @@ export interface TakeBack {
   /** What the take back did: A came back, D was removed, M was reverted, K was kept because the checkpoint ignores it. */
   changes: [status: string, path: string][]
   /** Set when the project's own git branch or commit moved since the checkpoint, as "branch sha7". */
-  git?: { then: string; now: string }
+  git?: { then?: string; now: string }
 }
 
 interface Store {
@@ -54,7 +54,8 @@ const storeDir = (root: string) =>
  */
 export function projectRoot(dir: string): string {
   const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: dir, encoding: 'utf8', env: cleanEnv() })
-  let root = r.status === 0 ? resolve(r.stdout.trim()) : realpathSync(dir)
+  // The OS's own realpath, so one folder gets one name: on Windows it expands 8.3 short names like RUNNER~1.
+  let root = realpathSync.native(r.status === 0 ? r.stdout.trim() : dir)
   if (r.status !== 0) {
     for (let d = dirname(root); d !== dirname(d); d = dirname(d)) {
       if (existsSync(join(storeDir(d), 'HEAD'))) {
@@ -237,9 +238,13 @@ function commitIfChanged(s: Store, label: string): string | null {
 function gitMoved(s: Store, to: string): TakeBack['git'] {
   const then = trailers(s, to).git
   const now = gitPosition(s.root)
-  if (!then || !now || then === now) return undefined
   const brief = (p: string) => p.slice(0, p.length - 33) // "branch sha" with the sha cut to 7 characters
-  return { then: brief(then), now: brief(now) }
+  if (!now || then === now) return undefined
+  if (then) return { then: brief(then), now: brief(now) }
+  // No record: the checkpoint predates 0.4.1, or the project had no commits yet. Then a current
+  // commit made after the checkpoint is the sign that git moved.
+  const committed = Number(spawnSync('git', ['log', '-1', '--format=%ct'], { cwd: s.root, encoding: 'utf8', env: cleanEnv() }).stdout)
+  return committed > info(s, to).time.getTime() / 1000 ? { now: brief(now) } : undefined
 }
 
 /** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */
@@ -261,7 +266,7 @@ function withScratchIndex<T>(s: Store, fn: (env: Record<string, string>) => T): 
 
 /** A path the user gave, relative to the project root as git wants it. */
 function projectPath(s: Store, dir: string, p: string): string {
-  const rel = relative(s.root, resolve(realpathSync(dir), p))
+  const rel = relative(s.root, resolve(realpathSync.native(dir), p))
   if (rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${p} is outside ${s.root}`)
   return rel.split(sep).join('/')
 }
