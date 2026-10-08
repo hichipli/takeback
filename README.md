@@ -4,7 +4,8 @@
 
 **Ctrl+Z for AI coding agents.**
 
-Undo any turn of Claude Code, Codex, Cursor & co, including the files they changed through Bash.
+Your agent ran `rm -rf`, rewrote 40 files, or "fixed" the wrong thing.<br>
+One command puts it all back, including what it changed through Bash.
 
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
@@ -18,13 +19,11 @@ English · [简体中文](README.zh-CN.md)
 
 ## Quick start
 
-takeback is a small command-line tool, and it protects your files wherever you use your agent: in a terminal, in the Claude or ChatGPT desktop app, or in your IDE ([details](#where-it-works)). Set it up once:
+Set it up once. From then on, Claude Code and Codex save a checkpoint before every prompt and after every turn, in every project:
 
 ```bash
 npx takeback init
 ```
-
-From now on, Claude Code and Codex save a checkpoint before every prompt and after every turn, in every project. Nothing else to install or run. `init` only touches the agents it finds on your computer and tells you what it skipped.
 
 When an agent breaks something, run this in the project folder:
 
@@ -32,33 +31,37 @@ When an agent breaks something, run this in the project folder:
 npx takeback
 ```
 
-> [!TIP]
-> No need to leave your session. In Claude Code in the terminal, type `!npx takeback` and Claude sees what was restored. In the desktop app, run it in the built-in terminal (<kbd>Ctrl</kbd>+<kbd>`</kbd>).
+That's it. Add `-n` to see what it would do first.
 
-## Why
+## Why takeback
 
-Built-in undo has holes:
+- **It catches what built-in undo misses.** Claude Code's `/rewind` skips files changed through Bash, most subagents and other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)). The Codex CLI [dropped `/undo`](https://github.com/openai/codex/issues/9203). takeback snapshots the whole folder, whoever changed it.
+- **One setup for every project and agent.** `init` covers Claude Code and Codex wherever you run them: terminal, desktop app or IDE. `takeback watch` covers everything else.
+- **It can't make things worse.** Every take back saves where you are first. Your `.git` is never touched, and files your `.gitignore` protects, like `.env`, are never deleted.
+- **Small enough to read.** Under 700 lines of TypeScript, zero dependencies, nothing leaves your machine. [Read it](src/) before you run it.
 
-- **Claude Code**'s `/rewind` does not restore files changed through Bash (`rm`, `mv`, `sed -i`, codegen, formatters), edits made by most subagents, or changes from other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)).
-- **Codex** dropped `/undo`. ["Please make /undo back"](https://github.com/openai/codex/issues/9203) is one of its most upvoted open issues.
-- **Every other tool** has its own undo or none, and none of them know what the other agents did.
-
-Git only helps if you remembered to commit right before you pressed Enter. takeback snapshots the **whole project folder** at every turn, no matter which tool touched the files.
+|  | takeback | Claude Code `/rewind` | git |
+| --- | --- | --- | --- |
+| Restores files changed through Bash (`rm`, `mv`, codegen) | ✓ | ✗ | Only what you committed |
+| Works with every agent | ✓ | Claude Code only | ✓ |
+| Nothing to remember before each prompt | ✓ | ✓ | Commit first |
 
 ## Using it
 
-| You want to | Run |
-| --- | --- |
-| Undo the agent's last turn | `takeback` |
-| Go back one more turn | `takeback` again |
-| Undo the last turn for one file only | `takeback src/app.ts` |
-| See every checkpoint | `takeback log` |
-| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` |
-| Restore one file from any checkpoint | `takeback to 3f9c2a1 src/app.ts` |
-| See what changed since a checkpoint | `takeback diff [id]` (`--stat` for a summary) |
-| Save a checkpoint by hand | `takeback save "before the big refactor"` |
+Commands are shown without `npx`; add it if you haven't installed takeback globally.
 
-Every take back saves where you are first and prints how to get back, so you can't lose work by taking back too far.
+| You want to | Terminal | Claude Code plugin |
+| --- | --- | --- |
+| Undo the agent's last turn | `takeback` | `/takeback:undo` |
+| See what that would change first | `takeback -n` | `/takeback:undo -n` |
+| Go back one more turn | `takeback` again | `/takeback:undo` again |
+| Undo the last turn for one file only | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
+| See every checkpoint | `takeback log` | `/takeback:log` |
+| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
+| See the last turn as a patch | `takeback diff` | |
+| Save a checkpoint by hand | `takeback save "before the refactor"` | |
+
+Every take back prints how to undo it, so you can't lose work by going back too far.
 
 ```console
 $ takeback log
@@ -67,13 +70,24 @@ $ takeback log
   966e3c5  3 minutes ago   claude · before "clean up the build scripts" · 3 files
 ```
 
+### Claude Code plugin
+
+Prefer slash commands? Inside Claude Code:
+
+```text
+/plugin marketplace add hichipli/takeback
+/plugin install takeback@takeback
+```
+
+You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to` and `/takeback:log`, and Claude sees what was taken back. Needs Node 22.18 or newer. If you also run `npx takeback init`, it leaves Claude Code to the plugin.
+
 ## Where it works
 
 takeback protects the files on your computer that coding agents change.
 
 | Where you run the agent | Setup |
 | --- | --- |
-| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init` |
+| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`, or the [plugin](#claude-code-plugin) |
 | Codex in the terminal or the ChatGPT desktop app | `npx takeback init`, then approve the new hooks once when Codex asks |
 | Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
 | Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
@@ -81,11 +95,11 @@ takeback protects the files on your computer that coding agents change.
 
 ## How it works
 
-- `init` adds two hooks to Claude Code and Codex: one before every prompt, one after every turn. It also copies takeback (about 20 KB, zero dependencies) to `~/.takeback/app`, so hooks take about 0.1 s and don't depend on npm.
+- `init` adds two hooks to Claude Code and Codex: one before every prompt, one after every turn. It copies takeback to `~/.takeback/app`, so each hook takes about 0.1 s and doesn't depend on npm.
 - Checkpoints go to a separate git repository in `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo at all.
 - It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`.
 - Checkpoints older than 30 days are dropped automatically, the same retention Claude Code uses for its own.
-- Everything stays on your machine. No daemon, no account, no telemetry.
+- No daemon, no account, no telemetry.
 
 ## FAQ
 
@@ -97,14 +111,13 @@ takeback protects the files on your computer that coding agents change.
 
 **How much disk does it use?** Git stores each version of a file once, compressed. Old checkpoints go after 30 days. To free space now, run `takeback prune`; `takeback prune --keep 7d` keeps only the last week. Prune also deletes checkpoints of folders that no longer exist.
 
-**How do I update?** `npx takeback@latest init`.
+**How do I update?** `npx takeback@latest init`. Plugin users get updates through `/plugin`.
 
-**How do I uninstall?** `npx takeback init --remove`, then `rm -rf ~/.takeback`.
+**How do I uninstall?** `npx takeback init --remove` (or `/plugin uninstall takeback@takeback`), then `rm -rf ~/.takeback`.
 
 ## Roadmap
 
 - [ ] Native hooks for Gemini CLI, OpenCode and DeepSeek Harness
-- [ ] Claude Code plugin
 - [ ] Interactive timeline picker
 
 ## Contributing

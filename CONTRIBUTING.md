@@ -15,6 +15,8 @@ node src/cli.ts --help      # run from source
 
 To try your changes with real agents, run `node src/cli.ts init`: the hooks then run your working copy until you run `npx takeback@latest init` again.
 
+The Claude Code plugin (`.claude-plugin/`, `hooks/`, `skills/`) runs `src/cli.ts` directly, with no build step. Load your working copy with `claude --plugin-dir .` and check it with `claude plugin validate .`. Keep the `version` in `.claude-plugin/plugin.json` equal to the one in `package.json`; a test enforces it.
+
 ## Pull requests
 
 - One change per pull request. If it changes behavior, add or update a test in `test/takeback.test.ts`.
