@@ -7,7 +7,7 @@ takeback keeps checkpoints of this project outside its git history. Run it with:
 
 `node "${CLAUDE_PLUGIN_ROOT}/src/cli.ts" <command>`
 
-- `log [count]`: checkpoints, newest first. Each label names the prompt it was saved before, or the turn it was saved after.
+- `log [count]`: checkpoints, newest first. Labels name the prompt of their turn: `after "…"` holds what that turn changed, `before "…"` what was there when the prompt arrived. Use them to find the turn the user means.
 - `show <id> <file>`: a file exactly as it was at a checkpoint.
 - `diff [id]`: what changed since a checkpoint (default: since the last turn started).
 - `to <id> -n [file...]`: preview restoring the project, or only some files, to a checkpoint.

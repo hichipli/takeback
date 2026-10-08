@@ -72,8 +72,8 @@ Every take back prints how to undo it, so you can't lose work by going back too 
 ```console
 $ takeback log
   42f4f3e  just now        takeback to 966e3c5 · 3 files
-  bb9958d  2 minutes ago   claude · after turn · 3 files
-  966e3c5  3 minutes ago   claude · before "clean up the build scripts" · 3 files
+  bb9958d  2 minutes ago   claude · after "clean up the build scripts" · 3 files
+  966e3c5  9 minutes ago   claude · after "add a release script" · 2 files
 ```
 
 ### Your agent can use it too

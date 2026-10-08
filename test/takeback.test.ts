@@ -413,3 +413,17 @@ test('without a git record, a commit made after the checkpoint still gets a note
   assert.equal(preview.git?.then, undefined)
   assert.match(preview.git!.now, /^main [0-9a-f]{7}$/)
 })
+
+test('the checkpoint after a turn is labeled with that turn\'s prompt', () => {
+  const dir = project({ 'CHANGELOG.md': 'history' })
+  const fire = (payload: object) =>
+    spawnSync(process.execPath, [cli, 'save', '--hook', 'claude'], { input: JSON.stringify({ cwd: dir, session_id: 's1', ...payload }) })
+  fire({ hook_event_name: 'UserPromptSubmit', prompt: 'delete the   changelog' })
+  rmSync(join(dir, 'CHANGELOG.md'))
+  fire({ hook_event_name: 'Stop' })
+  assert.equal(list(dir)[0].label, 'claude · after "delete the changelog"')
+
+  write(dir, 'CHANGELOG.md', 'back') // a turn whose prompt we never saw
+  fire({ hook_event_name: 'Stop' })
+  assert.equal(list(dir)[0].label, 'claude · after turn', 'a prompt labels only its own turn')
+})
