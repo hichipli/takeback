@@ -7,7 +7,8 @@
 - Take backs and previews say when the project's git branch or commit moved since the checkpoint: files come back as uncommitted changes, and commits stay.
 - `takeback diff` opens with a line naming the checkpoint and the command that reverts the changes. It goes to stderr, so a piped patch stays clean.
 - `takeback show <id> <file>` prints a file exactly as it was at a checkpoint.
-- Claude Code plugin: a skill tells Claude to read earlier versions from checkpoints instead of rebuilding them from memory. It restores only when you ask.
+- Claude Code and Codex plugins: a skill tells the agent to read earlier versions from checkpoints instead of rebuilding them from memory. It restores only when you ask.
+- The Codex plugin shows three example prompts in the ChatGPT app.
 - Reading (`log`, `diff`, `show`, previews) takes no lock and writes nothing to the store, so agents can run it inside a sandbox such as Codex's.
 - Outside git, takeback run from a subfolder finds the checkpoints of the folder above.
 

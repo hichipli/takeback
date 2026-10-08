@@ -75,7 +75,7 @@ takeback show 3f9c2a1 src/app.ts    # 某个文件当时的原样
 takeback diff 3f9c2a1               # 从那以后改了什么
 ```
 
-装了 Claude Code 插件后，Claude 会自己想到去查检查点，并且只在你要求时才恢复。其他智能体在你告诉它之后，也能运行同样的命令；读取不需要写权限，在 Codex 的沙盒里也能用。
+装了 Claude Code 或 Codex 插件后，智能体会自己想到去查检查点，并且只在你要求时才恢复。读取不需要写权限，在 Codex 的沙盒里也能用。其他智能体在你告诉它之后，也能运行同样的命令。
 
 ### 插件
 
@@ -101,7 +101,7 @@ codex plugin marketplace add hichipli/takeback
 codex plugin add takeback@takeback
 ```
 
-然后在 `/hooks` 或 ChatGPT App 的 Hooks 页面里批准一次它的两个钩子，它们列在 takeback 下面。
+然后在 `/hooks` 或 ChatGPT App 的 Hooks 页面里批准一次它的两个钩子，它们列在 takeback 下面。插件也会让 Codex 在你想要某个旧版本时，去检查点里读取。
 
 两个插件都直接运行 takeback 的 TypeScript 源码，需要 Node 22.18 或更新版本。
 

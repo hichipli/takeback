@@ -86,7 +86,7 @@ takeback show 3f9c2a1 src/app.ts    # a file exactly as it was
 takeback diff 3f9c2a1               # everything that changed since
 ```
 
-With the Claude Code plugin, Claude knows to look there on its own, and restores only when you ask. Any other agent can run the same commands when you tell it to; reading needs no write access, so it works inside Codex's sandbox too.
+With the Claude Code or Codex plugin, the agent knows to look there on its own, and restores only when you ask. Reading needs no write access, so it works inside Codex's sandbox too. Any other agent can run the same commands when you tell it to.
 
 ### Plugins
 
@@ -112,7 +112,7 @@ codex plugin marketplace add hichipli/takeback
 codex plugin add takeback@takeback
 ```
 
-Then approve its two hooks once, in `/hooks` or the ChatGPT app's Hooks page, where they're listed under takeback.
+Then approve its two hooks once, in `/hooks` or the ChatGPT app's Hooks page, where they're listed under takeback. The plugin also teaches Codex to read earlier versions from checkpoints when you ask for one.
 
 Both plugins run takeback's TypeScript source directly, so they need Node 22.18 or newer.
 
