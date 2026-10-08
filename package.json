@@ -1,0 +1,46 @@
+{
+  "name": "takeback",
+  "version": "0.1.0",
+  "description": "Ctrl+Z for AI coding agents. Undo any turn of Claude Code, Codex, Cursor & co, including files changed through Bash.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "ai-agents",
+    "coding-agent",
+    "undo",
+    "rewind",
+    "checkpoint",
+    "vibe-coding",
+    "cursor",
+    "gemini-cli",
+    "opencode",
+    "cli"
+  ],
+  "homepage": "https://github.com/hichipli/takeback#readme",
+  "bugs": "https://github.com/hichipli/takeback/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hichipli/takeback.git"
+  },
+  "license": "MIT",
+  "author": "Hongming (Chip) Li",
+  "type": "module",
+  "bin": {
+    "takeback": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test \"test/*.test.ts\"",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2"
+  }
+}

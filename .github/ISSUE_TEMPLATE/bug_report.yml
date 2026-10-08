@@ -1,0 +1,23 @@
+name: Bug report
+description: Something went wrong while saving or taking back
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you ran, what you expected, and what you got. Paste the output of `takeback log` if it helps.
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent
+      placeholder: Claude Code 2.1.288 / Codex 0.x / takeback watch with Cursor
+  - type: input
+    id: env
+    attributes:
+      label: takeback version, OS, Node and git versions
+      placeholder: "takeback 0.1.0, macOS 26, Node 24.10, git 2.48"
+    validations:
+      required: true
