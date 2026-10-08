@@ -10,8 +10,9 @@ import { fileURLToPath } from 'node:url'
 process.env.TAKEBACK_HOME = mkdtempSync(join(tmpdir(), 'takeback-store-'))
 process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'takeback-claude-home-'))
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'takeback-codex-home-'))
-// Nor run the real codex CLI: `init` would install the Codex plugin from GitHub.
-process.env.PATH = process.env.PATH!.split(delimiter).filter((d) => !existsSync(join(d, 'codex'))).join(delimiter)
+// Nor run the real codex or claude CLI: `init` would install or update the plugins from GitHub.
+// Keep this test run's node first, since its folder may be one that also holds those CLIs.
+process.env.PATH = [dirname(process.execPath), ...process.env.PATH!.split(delimiter).filter((d) => !['codex', 'claude'].some((b) => existsSync(join(d, b))))].join(delimiter)
 const { diff, installHooks, list, prune, save, show, tooBigToStart, undo } = await import('../src/takeback.ts')
 
 const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.ts')
@@ -383,4 +384,16 @@ test('reading works in a sandbox that cannot write to the store', { skip: proces
   } finally {
     lockDown(0o755)
   }
+})
+
+test('init stops asking to approve the Codex hooks once they are approved', () => {
+  const codexHome = mkdtempSync(join(tmpdir(), 'takeback-codex-'))
+  const enabled = '[plugins."takeback@takeback"]\nenabled = true\n'
+  writeFileSync(join(codexHome, 'config.toml'), enabled)
+  const env = { ...process.env, CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: join(tmpdir(), `takeback-none-${process.pid}`) }
+  const init = () => spawnSync(process.execPath, [cli, 'init'], { env, encoding: 'utf8' }).stdout
+  assert.match(init(), /covered by the takeback plugin .*to update it/)
+  assert.match(init(), /approve them/)
+  writeFileSync(join(codexHome, 'config.toml'), enabled + '\n[hooks.state."takeback@takeback:hooks/hooks.json:user_prompt_submit:0:0"]\ntrusted_hash = "sha256:x"\n')
+  assert.doesNotMatch(init(), /approve them/)
 })

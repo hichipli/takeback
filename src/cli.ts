@@ -170,7 +170,9 @@ function pluginEnabled(agent: Agent) {
   }
 }
 
-const codex = (...args: string[]) => spawnSync('codex', args, { encoding: 'utf8', timeout: 120_000, shell: process.platform === 'win32' })
+const cli = (bin: string) => (...args: string[]) => spawnSync(bin, args, { encoding: 'utf8', timeout: 120_000, shell: process.platform === 'win32' })
+const codex = cli('codex')
+const claude = cli('claude')
 
 /**
  * Codex runs a new hook only after the user approves it, and lists hooks from config as an anonymous
@@ -179,8 +181,24 @@ const codex = (...args: string[]) => spawnSync('codex', args, { encoding: 'utf8'
 function installCodexPlugin(): boolean {
   const marketplaces = codex('plugin', 'marketplace', 'list')
   if (marketplaces.status !== 0) return false // no codex CLI on PATH (say, ChatGPT app only)
-  if (!/^takeback\s/m.test(marketplaces.stdout) && codex('plugin', 'marketplace', 'add', 'hichipli/takeback').status !== 0) return false
+  // Already added: refresh it, so `npx takeback@latest init` also updates the plugin. A local marketplace has nothing to fetch.
+  if (/^takeback\s/m.test(marketplaces.stdout)) codex('plugin', 'marketplace', 'upgrade', 'takeback')
+  else if (codex('plugin', 'marketplace', 'add', 'hichipli/takeback').status !== 0) return false
   return codex('plugin', 'add', 'takeback@takeback').status === 0
+}
+
+/** Update the Claude Code plugin, for the same reason. False without the claude CLI on PATH. */
+const updateClaudePlugin = () =>
+  claude('plugin', 'marketplace', 'update', 'takeback').status === 0 && claude('plugin', 'update', 'takeback@takeback').status === 0
+
+/** Whether the user already approved the Codex plugin's hooks; Codex records that in its config. */
+function codexHooksTrusted() {
+  try {
+    const config = readFileSync(join(dirname(hookFile('codex', 'global')), 'config.toml'), 'utf8')
+    return /\[hooks\.state\."takeback@takeback:hooks\/hooks\.json:user_prompt_submit:0:0"\]\s*\ntrusted_hash/.test(config)
+  } catch {
+    return false
+  }
 }
 
 /** Without explicit agents, only touch the ones installed here: a chat-app user who runs init should get no stray config. */
@@ -200,10 +218,14 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
     if (remove && agent === 'codex' && pluginEnabled('codex') && codex('plugin', 'remove', 'takeback@takeback').status === 0) {
       console.log(`${green('✓')} ${NAMES[agent]}: takeback plugin removed`)
     }
-    if (!remove && (pluginEnabled(agent) || (agent === 'codex' && scope === 'global' && installCodexPlugin()))) {
+    // With a takeback plugin, init installs or updates it instead of writing hooks into the agent's config.
+    const updated = remove ? false : agent === 'codex' ? scope === 'global' && installCodexPlugin() : pluginEnabled('claude') && updateClaudePlugin()
+    if (!remove && (updated || pluginEnabled(agent))) {
       const cleaned = installHooks(file, '', true) ? dim(` (removed the old hooks from ${tilde(file)})`) : ''
-      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin${cleaned}`)
-      if (agent === 'codex') {
+      const howTo = agent === 'claude' ? '/plugin update takeback@takeback in Claude Code' : 'codex plugin marketplace upgrade takeback && codex plugin add takeback@takeback'
+      const state = updated ? 'takeback plugin, up to date' : `covered by the takeback plugin ${dim(`(to update it: ${howTo})`)}`
+      console.log(`${green('✓')} ${NAMES[agent]}: ${state}${cleaned}`)
+      if (agent === 'codex' && !codexHooksTrusted()) {
         console.log(yellow('  ! Codex runs new hooks only after you approve them: /hooks in Codex, or Hooks in the ChatGPT app.'))
         console.log(yellow('    Look for the two hooks listed under takeback.'))
       }
