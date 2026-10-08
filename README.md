@@ -73,8 +73,8 @@ takeback protects the files on your computer that coding agents change.
 
 | Where you run the agent | Setup |
 | --- | --- |
-| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`. They all read the same hooks from `~/.claude/settings.json` ([docs](https://code.claude.com/docs/en/desktop#shared-configuration)). |
-| Codex in the terminal or in the ChatGPT desktop app (local threads) | `npx takeback init`, then approve the new hooks once when Codex asks (`/hooks` in the terminal). The app runs the same Codex engine and reads the same `~/.codex` config. |
+| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init` |
+| Codex in the terminal or the ChatGPT desktop app | `npx takeback init`, then approve the new hooks once when Codex asks |
 | Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
 | Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
 | Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |

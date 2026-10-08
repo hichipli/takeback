@@ -62,8 +62,8 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 
 | 你在哪里用智能体 | 设置 |
 | --- | --- |
-| Claude Code：终端、Claude 桌面 App（Code 标签页）、VS Code / JetBrains 插件 | `npx takeback init`。它们读取同一份 `~/.claude/settings.json` 里的钩子（[官方文档](https://code.claude.com/docs/en/desktop#shared-configuration)） |
-| 终端里的 Codex，或 ChatGPT 桌面 App 里的 Codex（本地线程） | `npx takeback init`，然后在 Codex 提示时批准一次新钩子（终端里用 `/hooks`）。App 用的是同一个 Codex 引擎，读取同一份 `~/.codex` 配置 |
+| Claude Code：终端、Claude 桌面 App（Code 标签页）、VS Code / JetBrains 插件 | `npx takeback init` |
+| 终端或 ChatGPT 桌面 App 里的 Codex | `npx takeback init`，然后在 Codex 提示时批准一次新钩子 |
 | Cursor、Windsurf、Gemini CLI、OpenCode、Aider、Cline、你自己的脚本：任何会改文件夹里文件的工具 | 在那个文件夹里保持运行 `npx takeback watch`，文件停止变化 1.5 秒后自动存检查点 |
 | 网页版 Claude Code、Codex 云端任务等云端智能体 | 不适用：文件在服务商的机器上，不在你的电脑上 |
 | ChatGPT、Claude 等应用里的普通聊天 | 不需要：聊天不会改你电脑上的文件。就算运行了 `init`，它也找不到编程智能体，什么都不会改 |
