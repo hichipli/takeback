@@ -1,9 +1,11 @@
 # Changelog
 
-## 0.3.1 (2026-10-08)
+## 0.4.0 (2026-10-08)
 
-- `init` says plainly that Codex skips new hooks until you approve them with `/hooks`, and `takeback` explains the usual reasons a folder has no checkpoints.
-- With the takeback plugin enabled, the hooks from `init` stand down, and re-running `init` removes them, so checkpoints aren't saved twice.
+- Codex plugin. `init` installs it when the `codex` command is available, so Codex and the ChatGPT app list takeback's hooks by name, with its logo, when they ask you to approve them. Without it they showed up as an anonymous "User config · Hook 1".
+- Claude Code and Codex share one plugin hook file; the Claude Code commands moved to `claude-skills/`.
+- `init` says plainly that Codex skips new hooks until you approve them, and `takeback` explains the usual reasons a folder has no checkpoints.
+- With a takeback plugin enabled, the hooks from `init` stand down, and re-running `init` removes them, so checkpoints aren't saved twice.
 - Hooks don't start checkpointing a folder that isn't a git repo and holds more than 5,000 files or 500 MB. `takeback save` starts one by hand.
 - `takeback log`, `diff` and `-n` no longer create an empty store in folders without checkpoints.
 - A git lock left behind by a killed hook no longer blocks later checkpoints.
