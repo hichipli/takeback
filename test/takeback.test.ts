@@ -66,14 +66,14 @@ test('save skips when nothing changed; list and diff describe checkpoints', () =
 
   write(dir, 'a.txt', 'two')
   write(dir, 'b.txt', 'untracked')
-  const patch = diff(dir)
+  const patch = diff(dir).patch
   assert.match(patch, /\+two/)
   assert.match(patch, /b\.txt/, 'new files show up before they are saved')
 
   save(dir, 'second')
   const [latest, previous] = list(dir)
   assert.deepEqual([latest.label, latest.files, previous.id], ['second', 2, first])
-  assert.match(diff(dir, previous.id, latest.id), /\+two/)
+  assert.match(diff(dir, previous.id, latest.id).patch, /\+two/)
 })
 
 test('undo explains when there is nothing to take back', () => {
@@ -234,7 +234,7 @@ test('dry run reports exactly what a take back would do, and changes nothing', (
   const preview = undo(dir, undefined, [], true)
   assert.equal(read(dir, 'a.txt'), 'a2')
   assert.equal(list(dir)[0].label, 'after turn', 'no checkpoint was saved')
-  assert.match(diff(dir), /-a1[\s\S]*\+a2/, 'diff shows what the last turn changed')
+  assert.match(diff(dir).patch, /-a1[\s\S]*\+a2/, 'diff shows what the last turn changed')
   assert.deepEqual(undo(dir).changes, preview.changes)
 })
 
@@ -331,4 +331,26 @@ test('with --slash, hints name the Claude Code plugin commands', () => {
   assert.match(run('-n'), /Run `takeback` to do it, or `takeback diff`/, 'the terminal keeps terminal commands')
   assert.match(run('--slash', '-n'), /Run `\/takeback:undo` to do it, or `\/takeback:diff` for the full patch/)
   assert.match(run('--slash'), /Changed your mind\? \/takeback:to [0-9a-f]{7}/)
+})
+
+test('a take back says when the project moved to another commit or branch since the checkpoint', () => {
+  const dir = project({ 'CHANGELOG.md': 'history' })
+  const git = (...args: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: dir, encoding: 'utf8' })
+  git('init', '-q', '-b', 'main')
+  git('add', '-A')
+  git('commit', '-qm', 'init')
+  save(dir, 'before turn')
+  // The agent deletes a file and commits it on a new branch.
+  git('switch', '-qc', 'docs/changelog-remove')
+  git('rm', '-q', 'CHANGELOG.md')
+  git('commit', '-qm', 'remove changelog')
+  save(dir, 'after turn')
+
+  const preview = undo(dir, undefined, [], true)
+  assert.match(preview.git!.then, /^main [0-9a-f]{7}$/)
+  assert.match(preview.git!.now, /^docs\/changelog-remove [0-9a-f]{7}$/)
+
+  const r = spawnSync(process.execPath, [cli, 'diff'], { cwd: dir, encoding: 'utf8' })
+  assert.match(r.stderr, /Changes since [0-9a-f]{7} · before turn .*`takeback` reverts them/)
+  assert.match(r.stdout, /^diff --git/, 'stdout is only the patch')
 })

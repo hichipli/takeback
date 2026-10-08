@@ -18,6 +18,8 @@ export interface TakeBack {
   saved: string
   /** What the take back did: A came back, D was removed, M was reverted, K was kept because the checkpoint ignores it. */
   changes: [status: string, path: string][]
+  /** Set when the project's own git branch or commit moved since the checkpoint, as "branch sha7". */
+  git?: { then: string; now: string }
 }
 
 interface Store {
@@ -181,22 +183,43 @@ function info(s: Store, id: string): Checkpoint {
   return { id, time: new Date(Number(ct) * 1000), label, files: 0 }
 }
 
-// Take backs record what they restored in the commit body.
+// Checkpoints record the project's git position, and take backs what they restored, in the commit body.
 function trailers(s: Store, id: string) {
   const body = s.git(['log', '-1', '--format=%b', id])
-  return { restored: /^Restored: ([0-9a-f]{40})$/m.exec(body)?.[1], partial: /^Paths: /m.test(body) }
+  return {
+    restored: /^Restored: ([0-9a-f]{40})$/m.exec(body)?.[1],
+    partial: /^Paths: /m.test(body),
+    git: /^Git: (\S+ [0-9a-f]{40})$/m.exec(body)?.[1],
+  }
+}
+
+/** The project's own branch and commit as "branch sha", or null outside a git repo or before its first commit. */
+function gitPosition(root: string): string | null {
+  const r = spawnSync('git', ['rev-parse', 'HEAD', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf8', env: cleanEnv() })
+  const [sha, branch] = r.stdout.trim().split('\n')
+  return r.status === 0 && sha && branch ? `${branch} ${sha}` : null
 }
 
 function commitIndex(s: Store, label: string): string | null {
   const head = rev(s, 'HEAD')
   if (head && s.run(['diff', '--cached', '--quiet', 'HEAD']).status === 0) return null
-  s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', label])
+  const git = gitPosition(s.root)
+  s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', label, ...(git ? ['-m', `Git: ${git}`] : [])])
   return rev(s, 'HEAD')
 }
 
 function commitIfChanged(s: Store, label: string): string | null {
   s.git(['add', '-A', '--ignore-errors'])
   return commitIndex(s, label)
+}
+
+/** Where the project's git moved between checkpoint `to` and now, if it did. */
+function gitMoved(s: Store, to: string): TakeBack['git'] {
+  const then = trailers(s, to).git
+  const now = gitPosition(s.root)
+  if (!then || !now || then === now) return undefined
+  const brief = (p: string) => p.slice(0, p.length - 33) // "branch sha" with the sha cut to 7 characters
+  return { then: brief(then), now: brief(now) }
 }
 
 /** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */
@@ -329,7 +352,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
     if (dryRun) {
       return withScratchIndex(s, (env) => {
         const to = pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0, target)
-        return { to: info(s, to), saved: head, changes: plan(s, to, scope, env) }
+        return { to: info(s, to), saved: head, changes: plan(s, to, scope, env), git: gitMoved(s, to) }
       })
     }
 
@@ -355,7 +378,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
       const body = [`Restored: ${to}`, ...(paths.length ? [`Paths: ${paths.join(' ')}`] : [])].join('\n')
       s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', `takeback ${what}to ${to.slice(0, 7)}`, '-m', body])
     }
-    return { to: info(s, to), saved: before, changes }
+    return { to: info(s, to), saved: before, changes, git: gitMoved(s, to) }
   })
 }
 
@@ -363,7 +386,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
  * Patch from checkpoint `from` to checkpoint `to`, or to the files on disk now. Without `from`, it shows
  * what a plain `takeback` would undo: usually the agent's last turn.
  */
-export function diff(dir: string, from?: string, to?: string, flags: string[] = []): string {
+export function diff(dir: string, from?: string, to?: string, flags: string[] = []): { from: Checkpoint; patch: string } {
   return withStore(dir, (s) => {
     const head = rev(s, 'HEAD')
     if (!head) throw new Error(`No checkpoints for ${s.root} yet.`)
@@ -372,10 +395,13 @@ export function diff(dir: string, from?: string, to?: string, flags: string[] = 
       if (!id) throw new Error(`Unknown checkpoint: ${ref}`)
       return id
     }
-    if (from && to) return s.git(['diff', ...flags, resolved(from), resolved(to)])
+    if (from && to) {
+      const a = resolved(from)
+      return { from: info(s, a), patch: s.git(['diff', ...flags, a, resolved(to)]) }
+    }
     return withScratchIndex(s, (env) => {
       const a = from ? resolved(from) : pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0)
-      return s.git(['diff', '--cached', ...flags, a], env)
+      return { from: info(s, a), patch: s.git(['diff', '--cached', ...flags, a], env) }
     })
   })
 }

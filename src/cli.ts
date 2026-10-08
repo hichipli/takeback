@@ -92,7 +92,7 @@ const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted'
 const WOULD: Record<string, string> = { A: 'restore', D: 'remove', M: 'revert', K: 'keep' }
 
 function takeBack(target: string | undefined, paths: string[], dryRun: boolean) {
-  const { to, saved, changes } = undo(process.cwd(), target, paths, dryRun)
+  const { to, saved, changes, git } = undo(process.cwd(), target, paths, dryRun)
   if (!changes.length) return console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
   const what = paths.length ? ` ${paths.join(', ')}` : ''
   const head = dryRun ? `${yellow('?')}  Would take back` : `${green('↩')}  Took back`
@@ -102,6 +102,10 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
     console.log(`   ${dim(((dryRun ? WOULD : DID)[status] ?? 'revert').padEnd(10))}${path}${note}`)
   }
   if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
+  if (git) {
+    console.log(yellow(`   ! git moved since then: ${git.then} → ${git.now}.`))
+    console.log(yellow('     Files come back as uncommitted changes; your commits stay.'))
+  }
   if (dryRun) {
     const again = command(...(target ? ['to', target] : []), ...paths)
     return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`${command('diff')}\` for the full patch.`))
@@ -273,7 +277,14 @@ function main() {
       return log(Number(args[0]) || 20)
     case 'diff': {
       const flags = [...(tty ? ['--color=always'] : []), ...(values.stat ? ['--stat'] : [])]
-      return process.stdout.write(diff(process.cwd(), args[0], args[1], flags))
+      const { from, patch } = diff(process.cwd(), args[0], args[1], flags)
+      // On stderr, so `takeback diff > fix.patch` stays a clean patch.
+      if (args.length < 2) {
+        const reverts = args[0] ? command('to', short(from.id)) : command()
+        const since = `since ${short(from.id)} · ${from.label} · ${ago(from.time)}`
+        console.error(dim(patch ? `Changes ${since}. \`${reverts}\` reverts them.` : `No changes ${since}.`))
+      }
+      return process.stdout.write(patch)
     }
     case 'save': {
       if (values.hook) return hook(values.hook)
