@@ -124,7 +124,7 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 
 **为什么 takeback 说没有检查点？** 可能是还没设置（`npx takeback init`），可能是 Codex 还没批准钩子（在 Codex 里运行 `/hooks`），也可能这是一个不是 git 仓库的大文件夹（运行 `takeback save` 开始）。takeback 自己也会打印这些提示。
 
-**怎么更新？** `npx takeback@latest init`。插件用户运行 `claude plugin update takeback@takeback`。
+**怎么更新？** `npx takeback@latest init`。插件通过各自的智能体更新：Claude Code 运行 `claude plugin update takeback@takeback`；Codex 先运行 `codex plugin marketplace upgrade takeback`，再运行 `codex plugin add takeback@takeback`。如果更新改动了钩子，Codex 会请你重新批准一次。
 
 **怎么卸载？** `npx takeback init --remove` 会移除钩子和 Codex 插件。Claude Code 插件用 `/plugin uninstall takeback@takeback` 移除，最后删掉 `~/.takeback`。
 
