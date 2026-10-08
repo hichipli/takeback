@@ -151,7 +151,7 @@ takeback protects the files on your computer that coding agents change.
 
 **Why does takeback say there are no checkpoints?** Either setup hasn't run (`npx takeback init`), Codex hasn't been allowed to run the hooks yet (`/hooks` in Codex), or the folder is a big one that isn't a git repo (`takeback save` starts it). takeback prints these hints itself.
 
-**How do I update?** `npx takeback@latest init`. Plugins update through their agent: `claude plugin update takeback@takeback` for Claude Code; for Codex, `codex plugin marketplace upgrade takeback`, then `codex plugin add takeback@takeback`. If an update changes the hooks, Codex asks you to approve them again.
+**How do I update?** `npx takeback@latest init` updates everything, the Claude Code and Codex plugins included. If the `claude` or `codex` command isn't on your PATH, it tells you how to update that plugin from the agent instead. If an update changes the hooks, Codex asks you to approve them again.
 
 **How do I uninstall?** `npx takeback init --remove` removes the hooks and the Codex plugin. Remove the Claude Code plugin with `/plugin uninstall takeback@takeback`, then delete `~/.takeback`.
 
