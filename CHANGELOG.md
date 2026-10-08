@@ -8,6 +8,7 @@
 - `takeback log [count]` replaces `takeback log -n <count>`.
 - Fixed: if an agent un-ignored a file (for example by emptying `.gitignore`, so `.env` got into a checkpoint), taking back deleted it. Files the target checkpoint ignores are now kept, and ignored files a restore would overwrite are saved first.
 - `init` leaves Claude Code alone when the takeback plugin is enabled.
+- Fixed: `takeback diff` could miss an edit made in the same second as the last checkpoint.
 
 ## 0.2.0 (2026-10-08)
 
