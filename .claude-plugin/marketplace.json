@@ -1,0 +1,15 @@
+{
+  "name": "takeback",
+  "description": "takeback: Ctrl+Z for AI coding agents.",
+  "owner": {
+    "name": "Hongming (Chip) Li",
+    "url": "https://github.com/hichipli"
+  },
+  "plugins": [
+    {
+      "name": "takeback",
+      "source": "./",
+      "description": "Ctrl+Z for AI coding agents: undo any turn, including files changed through Bash."
+    }
+  ]
+}
