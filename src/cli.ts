@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
+import { dirname } from 'node:path'
 import { parseArgs } from 'node:util'
 import { AGENTS, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, undo, type Agent } from './takeback.ts'
 
@@ -112,9 +113,19 @@ function watchFiles() {
 
 const NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' }
 
-function init(agents: Agent[], scope: 'global' | 'project', remove: boolean) {
+/** Without explicit agents, only touch the ones installed here: a chat-app user who runs init should get no stray config. */
+function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, detect: boolean) {
+  const chosen = detect ? agents.filter((a) => existsSync(dirname(hookFile(a, 'global')))) : agents
+  if (!chosen.length) {
+    console.log("Didn't find Claude Code or Codex on this computer, so nothing was changed.")
+    return console.log(`Using another tool that edits your files? Keep ${yellow('npx takeback watch')} running in the project folder.`)
+  }
   const command = remove ? 'takeback' : installApp()
   for (const agent of agents) {
+    if (!chosen.includes(agent)) {
+      console.log(dim(`· ${NAMES[agent]}: not installed, skipped`))
+      continue
+    }
     const file = hookFile(agent, scope)
     const changed = installHooks(file, `${command} save --hook ${agent}`, remove)
     const state = remove ? (changed ? 'hooks removed from' : 'no hooks in') : changed ? 'checkpoint hooks added to' : 'already set up in'
@@ -123,7 +134,7 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean) {
   }
   if (remove) return
   console.log(`\nDone. When an agent breaks something, run ${yellow('npx takeback')} in the project folder.`)
-  console.log(dim('Other tools (Cursor, Gemini CLI, OpenCode…): keep `npx takeback watch` running next to them.'))
+  console.log(dim('Other tools (Cursor, Gemini CLI, OpenCode…): keep `npx takeback watch` running in the project folder.'))
 }
 
 function pruneAll(keep?: string) {
@@ -191,7 +202,7 @@ function main() {
       const agents = args.length ? (args as Agent[]) : AGENTS
       const unknown = agents.find((a) => !AGENTS.includes(a))
       if (unknown) throw new Error(`Unknown agent "${unknown}". Supported: ${AGENTS.join(', ')}. For any other tool use \`takeback watch\`.`)
-      return init(agents, values.project ? 'project' : 'global', !!values.remove)
+      return init(agents, values.project ? 'project' : 'global', !!values.remove, !args.length && !values.remove)
     }
     case 'prune':
       return pruneAll(values.keep)
