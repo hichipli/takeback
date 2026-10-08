@@ -1,6 +1,6 @@
 {
   "name": "takeback",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Ctrl+Z for AI coding agents. Saves a checkpoint of the project before every prompt and after every turn, so `npx takeback` can put files back, including ones changed by shell commands.",
   "author": {
     "name": "Hongming (Chip) Li",
@@ -16,6 +16,7 @@
     "git",
     "safety"
   ],
+  "skills": "./codex-skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "takeback",
@@ -24,11 +25,18 @@
     "developerName": "Hongming (Chip) Li",
     "category": "Developer Tools",
     "capabilities": [
+      "Read",
+      "Write",
       "Lifecycle hooks"
     ],
     "websiteURL": "https://github.com/hichipli/takeback",
     "brandColor": "#3fb950",
     "composerIcon": "./assets/logo.png",
-    "logo": "./assets/logo.png"
+    "logo": "./assets/logo.png",
+    "defaultPrompt": [
+      "Go back to how the project was before your last change.",
+      "Show me what src/app.ts looked like before the last turn.",
+      "What did you change in the last turn?"
+    ]
   }
 }

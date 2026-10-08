@@ -4,7 +4,7 @@ import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, tooBigToStart, undo, type Agent } from './takeback.ts'
+import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, show, tooBigToStart, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
@@ -25,6 +25,7 @@ Take back
 Look around
   takeback diff [from] [to]     What \`takeback\` would undo, as a patch; or changes since a checkpoint
   takeback log [count]          Checkpoints, newest first
+  takeback show <id> <file>     A file exactly as it was at a checkpoint
   takeback save [message]       Save a checkpoint now
   takeback prune [--keep 7d]    Free disk space now (checkpoints older than ${KEEP_DAYS} days go on their own)
 
@@ -80,11 +81,19 @@ function hook(flag: string) {
   }
 }
 
+// The Claude Code plugin passes --slash, so hints name its commands instead of the terminal ones.
+let slash = false
+const command = (...args: string[]) => {
+  if (!slash) return ['takeback', ...args].join(' ')
+  const [name, ...rest] = args[0] === 'to' || args[0] === 'diff' ? args : ['undo', ...args]
+  return [`/takeback:${name}`, ...rest].join(' ')
+}
+
 const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted', K: 'kept' }
 const WOULD: Record<string, string> = { A: 'restore', D: 'remove', M: 'revert', K: 'keep' }
 
 function takeBack(target: string | undefined, paths: string[], dryRun: boolean) {
-  const { to, saved, changes } = undo(process.cwd(), target, paths, dryRun)
+  const { to, saved, changes, git } = undo(process.cwd(), target, paths, dryRun)
   if (!changes.length) return console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
   const what = paths.length ? ` ${paths.join(', ')}` : ''
   const head = dryRun ? `${yellow('?')}  Would take back` : `${green('↩')}  Took back`
@@ -94,11 +103,15 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
     console.log(`   ${dim(((dryRun ? WOULD : DID)[status] ?? 'revert').padEnd(10))}${path}${note}`)
   }
   if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
-  if (dryRun) {
-    const again = ['takeback', ...(target ? ['to', target] : []), ...paths].join(' ')
-    return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`takeback diff\` for the full patch.`))
+  if (git) {
+    console.log(yellow(`   ! git moved since then: ${git.then} → ${git.now}.`))
+    console.log(yellow('     Files come back as uncommitted changes; your commits stay.'))
   }
-  console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
+  if (dryRun) {
+    const again = command(...(target ? ['to', target] : []), ...paths)
+    return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`${command('diff')}\` for the full patch.`))
+  }
+  console.log(dim(`   Changed your mind? ${command('to', short(saved))}`))
 }
 
 /** The usual reasons a folder has no checkpoints, each with its fix. */
@@ -221,7 +234,7 @@ function pruneAll(keep?: string) {
   console.log(`${green('✓')} Freed ${size(freed)}. Kept the last ${plural(days, 'day')} of checkpoints and always the newest one.`)
 }
 
-const COMMANDS = ['undo', 'to', 'log', 'ls', 'diff', 'save', 'watch', 'init', 'prune', 'help']
+const COMMANDS = ['undo', 'to', 'log', 'ls', 'diff', 'show', 'save', 'watch', 'init', 'prune', 'help']
 
 function main() {
   const { values, positionals } = parseArgs({
@@ -230,6 +243,7 @@ function main() {
       hook: { type: 'string' },
       n: { type: 'boolean', short: 'n' },
       'dry-run': { type: 'boolean' },
+      slash: { type: 'boolean' },
       keep: { type: 'string' },
       stat: { type: 'boolean' },
       project: { type: 'boolean' },
@@ -239,6 +253,7 @@ function main() {
     },
   })
   if (values.version) return console.log(VERSION)
+  slash = !!values.slash
   const [cmd, ...args] = positionals
   if (values.help || cmd === 'help') return console.log(HELP)
   const dryRun = !!(values.n || values['dry-run'])
@@ -263,8 +278,18 @@ function main() {
       return log(Number(args[0]) || 20)
     case 'diff': {
       const flags = [...(tty ? ['--color=always'] : []), ...(values.stat ? ['--stat'] : [])]
-      return process.stdout.write(diff(process.cwd(), args[0], args[1], flags))
+      const { from, patch } = diff(process.cwd(), args[0], args[1], flags)
+      // On stderr, so `takeback diff > fix.patch` stays a clean patch.
+      if (args.length < 2) {
+        const reverts = args[0] ? command('to', short(from.id)) : command()
+        const since = `since ${short(from.id)} · ${from.label} · ${ago(from.time)}`
+        console.error(dim(patch ? `Changes ${since}. \`${reverts}\` reverts them.` : `No changes ${since}.`))
+      }
+      return process.stdout.write(patch)
     }
+    case 'show':
+      if (args.length !== 2) throw new Error('Usage: takeback show <checkpoint> <file>')
+      return process.stdout.write(show(process.cwd(), args[0], args[1]))
     case 'save': {
       if (values.hook) return hook(values.hook)
       const id = save(process.cwd(), args.join(' ') || 'manual save')

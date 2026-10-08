@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { test } from 'node:test'
@@ -12,7 +12,7 @@ process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'takeback-claude-home
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'takeback-codex-home-'))
 // Nor run the real codex CLI: `init` would install the Codex plugin from GitHub.
 process.env.PATH = process.env.PATH!.split(delimiter).filter((d) => !existsSync(join(d, 'codex'))).join(delimiter)
-const { diff, installHooks, list, prune, save, tooBigToStart, undo } = await import('../src/takeback.ts')
+const { diff, installHooks, list, prune, save, show, tooBigToStart, undo } = await import('../src/takeback.ts')
 
 const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.ts')
 
@@ -66,14 +66,14 @@ test('save skips when nothing changed; list and diff describe checkpoints', () =
 
   write(dir, 'a.txt', 'two')
   write(dir, 'b.txt', 'untracked')
-  const patch = diff(dir)
+  const patch = diff(dir).patch
   assert.match(patch, /\+two/)
   assert.match(patch, /b\.txt/, 'new files show up before they are saved')
 
   save(dir, 'second')
   const [latest, previous] = list(dir)
   assert.deepEqual([latest.label, latest.files, previous.id], ['second', 2, first])
-  assert.match(diff(dir, previous.id, latest.id), /\+two/)
+  assert.match(diff(dir, previous.id, latest.id).patch, /\+two/)
 })
 
 test('undo explains when there is nothing to take back', () => {
@@ -234,7 +234,7 @@ test('dry run reports exactly what a take back would do, and changes nothing', (
   const preview = undo(dir, undefined, [], true)
   assert.equal(read(dir, 'a.txt'), 'a2')
   assert.equal(list(dir)[0].label, 'after turn', 'no checkpoint was saved')
-  assert.match(diff(dir), /-a1[\s\S]*\+a2/, 'diff shows what the last turn changed')
+  assert.match(diff(dir).patch, /-a1[\s\S]*\+a2/, 'diff shows what the last turn changed')
   assert.deepEqual(undo(dir).changes, preview.changes)
 })
 
@@ -244,7 +244,7 @@ test('one plugin hook file serves Claude Code and Codex, and init defers to an e
   const { version } = json('package.json')
   for (const manifest of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(json(manifest).version, version, manifest)
   const codexPlugin = json('.codex-plugin/plugin.json')
-  for (const f of [codexPlugin.hooks, codexPlugin.interface.logo]) assert.ok(existsSync(join(root, f)), f)
+  for (const f of [codexPlugin.hooks, codexPlugin.skills, codexPlugin.interface.logo]) assert.ok(existsSync(join(root, f)), f)
   assert.equal(json('.agents/plugins/marketplace.json').plugins[0].source.path, './')
 
   const command: string = json('hooks/hooks.json').hooks.UserPromptSubmit[0].hooks[0].command
@@ -320,4 +320,67 @@ test('with the Codex plugin enabled, hooks from init stand down', () => {
     input: JSON.stringify({ cwd: dir, hook_event_name: 'UserPromptSubmit', prompt: 'go' }),
   })
   assert.deepEqual(list(dir), [])
+})
+
+test('with --slash, hints name the Claude Code plugin commands', () => {
+  const dir = project({ 'a.txt': 'one' })
+  save(dir, 'before')
+  write(dir, 'a.txt', 'two')
+  save(dir, 'after')
+  const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' }).stdout
+  assert.match(run('-n'), /Run `takeback` to do it, or `takeback diff`/, 'the terminal keeps terminal commands')
+  assert.match(run('--slash', '-n'), /Run `\/takeback:undo` to do it, or `\/takeback:diff` for the full patch/)
+  assert.match(run('--slash'), /Changed your mind\? \/takeback:to [0-9a-f]{7}/)
+})
+
+test('a take back says when the project moved to another commit or branch since the checkpoint', () => {
+  const dir = project({ 'CHANGELOG.md': 'history' })
+  const git = (...args: string[]) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: dir, encoding: 'utf8' })
+  git('init', '-q', '-b', 'main')
+  git('add', '-A')
+  git('commit', '-qm', 'init')
+  save(dir, 'before turn')
+  // The agent deletes a file and commits it on a new branch.
+  git('switch', '-qc', 'docs/changelog-remove')
+  git('rm', '-q', 'CHANGELOG.md')
+  git('commit', '-qm', 'remove changelog')
+  save(dir, 'after turn')
+
+  const preview = undo(dir, undefined, [], true)
+  assert.match(preview.git!.then, /^main [0-9a-f]{7}$/)
+  assert.match(preview.git!.now, /^docs\/changelog-remove [0-9a-f]{7}$/)
+
+  const r = spawnSync(process.execPath, [cli, 'diff'], { cwd: dir, encoding: 'utf8' })
+  assert.match(r.stderr, /Changes since [0-9a-f]{7} · before turn .*`takeback` reverts them/)
+  assert.match(r.stdout, /^diff --git/, 'stdout is only the patch')
+})
+
+test('show prints a file as it was at a checkpoint', () => {
+  const dir = project({ 'src/app.js': 'v1' })
+  const first = save(dir, 'before')!
+  write(dir, 'src/app.js', 'v2')
+  save(dir, 'after')
+  assert.equal(show(dir, first, 'src/app.js').toString(), 'v1')
+  assert.throws(() => show(dir, first, 'nope.js'), /isn't in checkpoint/)
+  const r = spawnSync(process.execPath, [cli, 'show', first.slice(0, 7), 'app.js'], { cwd: join(dir, 'src'), encoding: 'utf8' })
+  assert.equal(r.stdout, 'v1', 'paths are relative to where you run it')
+})
+
+test('reading works in a sandbox that cannot write to the store', { skip: process.platform === 'win32' }, () => {
+  const dir = project({ 'a.txt': 'one' })
+  const first = save(dir, 'before')!
+  write(dir, 'a.txt', 'two')
+  save(dir, 'after')
+  write(dir, 'a.txt', 'three') // unsaved, so previews stage it somewhere
+  const store = readdirSync(process.env.TAKEBACK_HOME!).find((d) => d.startsWith(basename(dir)))!
+  const lockDown = (mode: number) => spawnSync('chmod', ['-R', mode.toString(8), join(process.env.TAKEBACK_HOME!, store)])
+  lockDown(0o555)
+  try {
+    assert.equal(list(dir).length, 2)
+    assert.match(diff(dir).patch, /\+three/)
+    assert.deepEqual(undo(dir, undefined, [], true).changes, [['M', 'a.txt']])
+    assert.equal(show(dir, first, 'a.txt').toString(), 'one')
+  } finally {
+    lockDown(0o755)
+  }
 })
