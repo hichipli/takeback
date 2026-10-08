@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.7 (2026-10-08)
+
+- `npx takeback init` installs the Claude Code plugin too when the `claude` command is available, as it already did for Codex. So after one command you can tell either agent "go back to before your last change", and it restores from checkpoints. Without the `claude` command (say, only the desktop app), `init` adds hooks as before.
+- `init --remove` uninstalls the Claude Code plugin as well.
+- `init` sets up the plugins only on Node 22.18 or newer, which they need to run. On older Node it adds hooks instead.
+- The README says who takeback is for beyond developers, and lists similar tools.
+
 ## 0.4.6 (2026-10-08)
 
 - A git repo inside the project, such as a submodule, is no longer reported as removed or restored by a take back. Checkpoints hold only its commit and a take back never touches its files, so it now says so instead: `! Git repos inside the project aren't in checkpoints: vendor/lib.`
