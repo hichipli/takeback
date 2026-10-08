@@ -16,5 +16,6 @@
     "git",
     "safety"
   ],
+  "icon": "./assets/logo.png",
   "skills": "./claude-skills/"
 }

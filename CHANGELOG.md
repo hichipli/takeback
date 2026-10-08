@@ -4,6 +4,7 @@
 
 - Codex plugin. `init` installs it when the `codex` command is available, so Codex and the ChatGPT app list takeback's hooks by name, with its logo, when they ask you to approve them. Without it they showed up as an anonymous "User config · Hook 1".
 - Claude Code and Codex share one plugin hook file; the Claude Code commands moved to `claude-skills/`.
+- A logo, used in the README and in both plugin listings.
 - `init` says plainly that Codex skips new hooks until you approve them, and `takeback` explains the usual reasons a folder has no checkpoints.
 - With a takeback plugin enabled, the hooks from `init` stand down, and re-running `init` removes them, so checkpoints aren't saved twice.
 - Hooks don't start checkpointing a folder that isn't a git repo and holds more than 5,000 files or 500 MB. `takeback save` starts one by hand.

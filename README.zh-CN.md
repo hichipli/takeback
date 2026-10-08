@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.svg" width="88" alt="takeback">
+
 # takeback
 
 **AI 编程智能体的 Ctrl+Z。**
