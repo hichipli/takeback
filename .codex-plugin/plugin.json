@@ -1,0 +1,34 @@
+{
+  "name": "takeback",
+  "version": "0.4.0",
+  "description": "Ctrl+Z for AI coding agents. Saves a checkpoint of the project before every prompt and after every turn, so `npx takeback` can put files back, including ones changed by shell commands.",
+  "author": {
+    "name": "Hongming (Chip) Li",
+    "url": "https://github.com/hichipli"
+  },
+  "homepage": "https://github.com/hichipli/takeback",
+  "repository": "https://github.com/hichipli/takeback",
+  "license": "MIT",
+  "keywords": [
+    "undo",
+    "rewind",
+    "checkpoint",
+    "git",
+    "safety"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "takeback",
+    "shortDescription": "Ctrl+Z for AI coding agents",
+    "longDescription": "Saves a checkpoint of your project before every prompt and after every turn, in a separate git store under ~/.takeback. Run `npx takeback` in the project to undo the last turn, including files changed by shell commands. Your own .git is never touched.",
+    "developerName": "Hongming (Chip) Li",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Lifecycle hooks"
+    ],
+    "websiteURL": "https://github.com/hichipli/takeback",
+    "brandColor": "#3fb950",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}

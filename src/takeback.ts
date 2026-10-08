@@ -439,7 +439,7 @@ export function installApp(): string {
   return `node "${cli}"`
 }
 
-interface HookGroup { matcher?: string; hooks?: { type?: string; command?: string; timeout?: number }[] }
+interface HookGroup { matcher?: string; hooks?: { type?: string; command?: string; timeout?: number; statusMessage?: string }[] }
 const isOurs = (g: HookGroup) => g.hooks?.some((h) => /\bsave --hook (claude|codex)\b/.test(h.command ?? ''))
 
 /**
@@ -457,7 +457,7 @@ export function installHooks(file: string, command: string, remove = false): boo
   const hooks = (cfg.hooks ??= {})
   for (const event of ['UserPromptSubmit', 'Stop']) {
     const groups = (hooks[event] ?? []).filter((g) => !isOurs(g))
-    if (!remove) groups.push({ hooks: [{ type: 'command', command, timeout: 30 }] })
+    if (!remove) groups.push({ hooks: [{ type: 'command', command, timeout: 30, statusMessage: 'Saving a takeback checkpoint' }] })
     if (groups.length) hooks[event] = groups
     else delete hooks[event]
   }

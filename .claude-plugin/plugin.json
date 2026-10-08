@@ -1,10 +1,20 @@
 {
   "name": "takeback",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Ctrl+Z for AI coding agents. Saves a checkpoint before every prompt and after every turn; /takeback:undo puts your files back, including ones changed through Bash.",
-  "author": { "name": "Hongming (Chip) Li", "url": "https://github.com/hichipli" },
+  "author": {
+    "name": "Hongming (Chip) Li",
+    "url": "https://github.com/hichipli"
+  },
   "homepage": "https://github.com/hichipli/takeback",
   "repository": "https://github.com/hichipli/takeback",
   "license": "MIT",
-  "keywords": ["undo", "rewind", "checkpoint", "git", "safety"]
+  "keywords": [
+    "undo",
+    "rewind",
+    "checkpoint",
+    "git",
+    "safety"
+  ],
+  "skills": "./claude-skills/"
 }

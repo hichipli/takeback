@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, delimiter, dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url'
 process.env.TAKEBACK_HOME = mkdtempSync(join(tmpdir(), 'takeback-store-'))
 process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'takeback-claude-home-'))
 process.env.CODEX_HOME = mkdtempSync(join(tmpdir(), 'takeback-codex-home-'))
+// Nor run the real codex CLI: `init` would install the Codex plugin from GitHub.
+process.env.PATH = process.env.PATH!.split(delimiter).filter((d) => !existsSync(join(d, 'codex'))).join(delimiter)
 const { diff, installHooks, list, prune, save, tooBigToStart, undo } = await import('../src/takeback.ts')
 
 const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.ts')
@@ -236,19 +238,27 @@ test('dry run reports exactly what a take back would do, and changes nothing', (
   assert.deepEqual(undo(dir).changes, preview.changes)
 })
 
-test('the Claude Code plugin runs from source, matches the package version, and init defers to it', () => {
+test('one plugin hook file serves Claude Code and Codex, and init defers to an enabled plugin', () => {
   const root = join(dirname(cli), '..')
-  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin', 'plugin.json'), 'utf8')).version, pkg.version)
+  const json = (f: string) => JSON.parse(readFileSync(join(root, f), 'utf8'))
+  const { version } = json('package.json')
+  for (const manifest of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(json(manifest).version, version, manifest)
+  const codexPlugin = json('.codex-plugin/plugin.json')
+  for (const f of [codexPlugin.hooks, codexPlugin.interface.logo]) assert.ok(existsSync(join(root, f)), f)
+  assert.equal(json('.agents/plugins/marketplace.json').plugins[0].source.path, './')
 
-  const command: string = JSON.parse(readFileSync(join(root, 'hooks', 'hooks.json'), 'utf8')).hooks.UserPromptSubmit[0].hooks[0].command
-  const dir = project({ 'a.txt': 'one' })
-  const payload = JSON.stringify({ cwd: dir, hook_event_name: 'UserPromptSubmit', prompt: 'refactor it' })
-  const h = spawnSync(command.replace('${CLAUDE_PLUGIN_ROOT}', root), {
-    shell: true, input: payload, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_ROOT: root },
-  })
-  assert.equal(h.status, 0, h.stderr)
-  assert.equal(list(dir)[0].label, 'claude · before "refactor it"')
+  const command: string = json('hooks/hooks.json').hooks.UserPromptSubmit[0].hooks[0].command
+  const fire = (dir: string, env: Record<string, string>) =>
+    spawnSync(command, {
+      shell: true, encoding: 'utf8', env: { ...process.env, ...env },
+      input: JSON.stringify({ cwd: dir, hook_event_name: 'UserPromptSubmit', prompt: 'refactor it' }),
+    })
+  const claudeDir = project({ 'a.txt': 'one' })
+  assert.equal(fire(claudeDir, { CLAUDE_PLUGIN_ROOT: root }).status, 0)
+  assert.equal(list(claudeDir)[0].label, 'claude · before "refactor it"')
+  const codexDir = project({ 'a.txt': 'one' })
+  fire(codexDir, { CLAUDE_PLUGIN_ROOT: root, PLUGIN_ROOT: root }) // what Codex sets for plugin hooks
+  assert.equal(list(codexDir)[0].label, 'codex · before "refactor it"')
 
   const claude = mkdtempSync(join(tmpdir(), 'takeback-claude-'))
   writeFileSync(join(claude, 'settings.json'), JSON.stringify({ enabledPlugins: { 'takeback@takeback': true } }))
@@ -299,4 +309,15 @@ test('with the plugin enabled, hooks from init stand down and the plugin hook do
   assert.deepEqual(list(dir), [], 'the init hook did nothing')
   fire({ CLAUDE_PLUGIN_ROOT: '/plugin' })
   assert.equal(list(dir)[0].label, 'claude · before "go"')
+})
+
+test('with the Codex plugin enabled, hooks from init stand down', () => {
+  const codexHome = mkdtempSync(join(tmpdir(), 'takeback-codex-'))
+  writeFileSync(join(codexHome, 'config.toml'), '[plugins."takeback@takeback"]\nenabled = true\n')
+  const dir = project({ 'a.txt': 'one' })
+  spawnSync(process.execPath, [cli, 'save', '--hook', 'codex'], {
+    env: { ...process.env, CODEX_HOME: codexHome },
+    input: JSON.stringify({ cwd: dir, hook_event_name: 'UserPromptSubmit', prompt: 'go' }),
+  })
+  assert.deepEqual(list(dir), [])
 })
