@@ -3,7 +3,7 @@ import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { AGENTS, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, undo, type Agent } from './takeback.ts'
+import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, tooBigToStart, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
@@ -60,13 +60,17 @@ function hook(agent: string) {
       payload = JSON.parse(readFileSync(0, 'utf8') || '{}')
     } catch {}
     const event = payload.hook_event_name
+    const dir = payload.cwd ?? process.cwd()
     // Our own plugin commands: the take back saves the state it replaces, so skip the extra checkpoint.
     if (payload.prompt?.trimStart().startsWith('/takeback:')) return
+    // With the takeback plugin enabled, its hook does the work and this one (from `init`) stands down.
+    if (agent === 'claude' && !process.env.CLAUDE_PLUGIN_ROOT && claudePluginEnabled()) return
+    if (tooBigToStart(dir)) return
     const label =
       event === 'UserPromptSubmit' ? `${agent} · before "${oneLine(payload.prompt ?? '')}"`
       : event === 'Stop' ? `${agent} · after turn`
       : `${agent} · ${event ?? 'hook'}`
-    save(payload.cwd ?? process.cwd(), label)
+    save(dir, label)
   } catch (e) {
     process.stderr.write(`takeback: ${(e as Error).message}\n`)
   }
@@ -93,9 +97,19 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
   console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
 }
 
+/** The usual reasons a folder has no checkpoints, each with its fix. */
+function noCheckpoints(message: string) {
+  console.error(red(`takeback: ${tilde(message)}`))
+  const mb = AUTO_LIMIT.bytes / 1e6
+  console.error(dim(`  · Set up once with \`npx takeback init\`, or keep \`npx takeback watch\` running here.
+  · Codex skips new hooks until you approve them once: run /hooks in Codex.
+  · Folders that aren't git repos and hold over ${AUTO_LIMIT.files.toLocaleString('en')} files or ${mb} MB start only after \`takeback save\`.`))
+  process.exitCode = 1
+}
+
 function log(limit: number) {
   const items = list(process.cwd(), limit)
-  if (!items.length) return console.log('No checkpoints yet. Run `npx takeback init` or `npx takeback watch` first.')
+  if (!items.length) return noCheckpoints(`No checkpoints for ${projectRoot(process.cwd())} yet.`)
   console.log(dim(tilde(projectRoot(process.cwd()))))
   for (const c of items) {
     const files = c.files ? dim(` · ${plural(c.files, 'file')}`) : ''
@@ -149,14 +163,16 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
       continue
     }
     if (agent === 'claude' && !remove && claudePluginEnabled()) {
-      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin`)
+      const file = hookFile(agent, scope)
+      const cleaned = installHooks(file, '', true) ? dim(` (removed the duplicate hooks from ${tilde(file)})`) : ''
+      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin${cleaned}`)
       continue
     }
     const file = hookFile(agent, scope)
     const changed = installHooks(file, `${command} save --hook ${agent}`, remove)
     const state = remove ? (changed ? 'hooks removed from' : 'no hooks in') : changed ? 'checkpoint hooks added to' : 'already set up in'
-    const trust = agent === 'codex' && changed && !remove ? dim(' (Codex asks you to review new hooks once)') : ''
-    console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}${trust}`)
+    console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}`)
+    if (agent === 'codex' && !remove) console.log(yellow('  ! Codex skips new hooks until you approve them once: open Codex and run /hooks.'))
   }
   if (remove) return
   console.log(`\nDone. When an agent breaks something, run ${yellow('npx takeback')} in the project folder.`)
@@ -240,6 +256,8 @@ function main() {
 try {
   main()
 } catch (e) {
-  console.error(red(`takeback: ${(e as Error).message}`))
+  const message = (e as Error).message
+  if (message.startsWith('No checkpoints')) noCheckpoints(message)
+  else console.error(red(`takeback: ${message}`))
   process.exit(1)
 }
