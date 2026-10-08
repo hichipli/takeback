@@ -14,13 +14,13 @@
 
 ## 快速开始
 
-只需设置一次：
+takeback 是一个小巧的命令行工具，但不管你在哪里用智能体（终端、Claude 桌面 App 还是 IDE），它都能保护你的文件（[详见](#在哪里能用)）。只需设置一次：
 
 ```bash
 npx takeback init
 ```
 
-之后在所有项目里，Claude Code 和 Codex 都会在每次发送提示词之前、每轮结束之后各保存一个检查点。不用再装别的，也不用常驻运行什么。
+之后在所有项目里，Claude Code 和 Codex 都会在每次发送提示词之前、每轮结束之后各保存一个检查点。不用再装别的，也不用常驻运行什么。`init` 只会配置你电脑上装了的智能体，并告诉你跳过了哪些。
 
 智能体把东西改坏了，就在项目文件夹里运行：
 
@@ -29,7 +29,7 @@ npx takeback
 ```
 
 > [!TIP]
-> 在 Claude Code 里甚至不用离开对话：输入 `!npx takeback`，Claude 也能看到恢复了哪些文件。
+> 不用离开当前会话。在终端版 Claude Code 里输入 `!npx takeback`，Claude 也能看到恢复了哪些文件；在桌面 App 里，用自带的终端（<kbd>Ctrl</kbd>+<kbd>`</kbd>）运行。
 
 ## 为什么需要它
 
@@ -62,10 +62,11 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 
 | 你在哪里用智能体 | 设置 |
 | --- | --- |
-| Claude Code：终端、桌面 App、VS Code / JetBrains 插件 | `npx takeback init`（它们共用 `~/.claude/settings.json`） |
+| Claude Code：终端、Claude 桌面 App（Code 标签页）、VS Code / JetBrains 插件 | `npx takeback init`。它们读取同一份 `~/.claude/settings.json` 里的钩子（[官方文档](https://code.claude.com/docs/en/desktop#shared-configuration)） |
 | Codex CLI | `npx takeback init`，然后在 Codex 里用 `/hooks` 信任一次 |
 | Cursor、Windsurf、Gemini CLI、OpenCode、Aider、Cline、Codex App、你自己的脚本：任何会改文件夹里文件的工具 | 在那个文件夹里保持运行 `npx takeback watch`，文件停止变化 1.5 秒后自动存检查点 |
-| ChatGPT、Claude.ai 等聊天应用 | 不需要。它们不会改你硬盘上的文件 |
+| 网页版 Claude Code 等云端智能体 | 不适用：文件在服务商的机器上，不在你的电脑上 |
+| ChatGPT、Claude 聊天等聊天应用 | 不需要：它们不会改你电脑上的文件。就算运行了 `init`，它也找不到编程智能体，什么都不会改 |
 
 ## 工作原理
 
