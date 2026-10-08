@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 process.env.TAKEBACK_HOME = mkdtempSync(join(tmpdir(), 'takeback-store-'))
-const { diff, installHooks, list, save, undo } = await import('../src/takeback.ts')
+const { diff, installHooks, list, prune, save, undo } = await import('../src/takeback.ts')
 
 const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli.ts')
 
@@ -38,8 +38,10 @@ test('takes back turns, including Bash-style deletes and new files, and the take
   const second = undo(dir)
   assert.equal(read(dir, 'app.js'), 'v2')
 
-  // Again: walks back past turn 1.
-  undo(dir)
+  // Again: walks back past turn 1, and reports what it did.
+  const first = undo(dir)
+  assert.deepEqual(first.changes, [['M', 'app.js'], ['A', 'scripts/build.sh'], ['D', 'src/new.js']])
+  assert.equal(first.to.label, 'before turn 1')
   assert.equal(read(dir, 'app.js'), 'v1')
   assert.equal(read(dir, 'scripts/build.sh'), 'build')
   assert.ok(!existsSync(join(dir, 'src')), 'files the agent created are gone, and so is their folder')
@@ -106,4 +108,77 @@ test('hook mode reads the agent payload and prints nothing', () => {
   assert.equal(r.status, 0, r.stderr)
   assert.equal(r.stdout, '', 'stdout of a UserPromptSubmit hook would be added to the agent context')
   assert.equal(list(dir)[0].label, 'claude · before "fix the login bug"')
+})
+
+test('takes back single files without moving the turn position', () => {
+  const dir = project({ 'a.txt': 'a1', 'b.txt': 'b1' })
+  save(dir, 'before turn')
+  write(dir, 'a.txt', 'a2')
+  write(dir, 'b.txt', 'b2')
+  write(dir, 'c.txt', 'new')
+  save(dir, 'after turn')
+
+  assert.deepEqual(undo(dir, undefined, ['a.txt']).changes, [['M', 'a.txt']])
+  assert.equal(read(dir, 'a.txt'), 'a1')
+  assert.equal(read(dir, 'b.txt'), 'b2', 'other files are untouched')
+  assert.deepEqual(undo(dir, undefined, ['a.txt']).changes, [], 'taking back the same file twice is a no-op')
+  assert.deepEqual(undo(dir, undefined, ['c.txt']).changes, [['D', 'c.txt']], 'a file the agent created goes away')
+  assert.throws(() => undo(dir, undefined, ['nope.txt']), /never appears/)
+
+  // A full take back then finishes the same turn instead of going further back.
+  const full = undo(dir)
+  assert.equal(full.to.label, 'before turn')
+  assert.equal(read(dir, 'b.txt'), 'b1')
+})
+
+test('init installs a private copy so hooks run without npx', () => {
+  const env = {
+    ...process.env,
+    CLAUDE_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'takeback-claude-')),
+    CODEX_HOME: mkdtempSync(join(tmpdir(), 'takeback-codex-')),
+  }
+  const r = spawnSync(process.execPath, [cli, 'init'], { env, encoding: 'utf8' })
+  assert.equal(r.status, 0, r.stderr)
+  const command = JSON.parse(readFileSync(join(env.CLAUDE_CONFIG_DIR, 'settings.json'), 'utf8')).hooks.UserPromptSubmit[0].hooks[0].command
+  assert.match(command, /^node ".+app[\\/]dist[\\/]cli\.ts" save --hook claude$/)
+  assert.ok(existsSync(join(env.CODEX_HOME, 'hooks.json')))
+
+  // Run the hook the way Claude Code does: through a shell, payload on stdin.
+  const dir = project({ 'a.txt': 'one' })
+  const h = spawnSync(command, { shell: true, env, encoding: 'utf8', input: JSON.stringify({ cwd: dir, hook_event_name: 'Stop' }) })
+  assert.equal(h.status, 0, h.stderr)
+  assert.equal(h.stdout, '')
+  assert.equal(list(dir)[0].label, 'claude · after turn')
+
+  // Re-running init doesn't duplicate hooks, and --remove finds them wherever the app lives.
+  const settings = () => JSON.parse(readFileSync(join(env.CLAUDE_CONFIG_DIR, 'settings.json'), 'utf8'))
+  spawnSync(process.execPath, [cli, 'init'], { env })
+  assert.equal(settings().hooks.Stop.length, 1)
+  spawnSync(process.execPath, [cli, 'init', '--remove'], { env: { ...env, TAKEBACK_HOME: join(tmpdir(), 'elsewhere') } })
+  assert.deepEqual(settings(), {})
+})
+
+test('prune keeps the newest checkpoint and deletes stores of deleted folders', () => {
+  const home = process.env.TAKEBACK_HOME
+  process.env.TAKEBACK_HOME = mkdtempSync(join(tmpdir(), 'takeback-prune-'))
+  try {
+    const dir = project({ 'a.txt': '1' })
+    for (const v of ['2', '3']) {
+      save(dir)
+      write(dir, 'a.txt', v)
+    }
+    save(dir)
+    const gone = project({ 'b.txt': 'x' })
+    save(gone)
+    rmSync(gone, { recursive: true })
+
+    const results = prune(0)
+    assert.deepEqual(results.map((r) => [r.gone, r.dropped]).sort(), [[false, 2], [true, 0]])
+    assert.equal(list(dir).length, 1)
+    assert.throws(() => undo(dir), /oldest checkpoint/)
+    write(dir, 'a.txt', '4')
+    assert.ok(save(dir), 'saving still works after a prune')
+  } finally {
+    process.env.TAKEBACK_HOME = home
+  }
 })
