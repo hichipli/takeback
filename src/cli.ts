@@ -80,6 +80,14 @@ function hook(flag: string) {
   }
 }
 
+// The Claude Code plugin passes --slash, so hints name its commands instead of the terminal ones.
+let slash = false
+const command = (...args: string[]) => {
+  if (!slash) return ['takeback', ...args].join(' ')
+  const [name, ...rest] = args[0] === 'to' || args[0] === 'diff' ? args : ['undo', ...args]
+  return [`/takeback:${name}`, ...rest].join(' ')
+}
+
 const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted', K: 'kept' }
 const WOULD: Record<string, string> = { A: 'restore', D: 'remove', M: 'revert', K: 'keep' }
 
@@ -95,10 +103,10 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
   }
   if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
   if (dryRun) {
-    const again = ['takeback', ...(target ? ['to', target] : []), ...paths].join(' ')
-    return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`takeback diff\` for the full patch.`))
+    const again = command(...(target ? ['to', target] : []), ...paths)
+    return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`${command('diff')}\` for the full patch.`))
   }
-  console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
+  console.log(dim(`   Changed your mind? ${command('to', short(saved))}`))
 }
 
 /** The usual reasons a folder has no checkpoints, each with its fix. */
@@ -230,6 +238,7 @@ function main() {
       hook: { type: 'string' },
       n: { type: 'boolean', short: 'n' },
       'dry-run': { type: 'boolean' },
+      slash: { type: 'boolean' },
       keep: { type: 'string' },
       stat: { type: 'boolean' },
       project: { type: 'boolean' },
@@ -239,6 +248,7 @@ function main() {
     },
   })
   if (values.version) return console.log(VERSION)
+  slash = !!values.slash
   const [cmd, ...args] = positionals
   if (values.help || cmd === 'help') return console.log(HELP)
   const dryRun = !!(values.n || values['dry-run'])
