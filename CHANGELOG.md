@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.6 (2026-10-08)
+
+- A git repo inside the project, such as a submodule, is no longer reported as removed or restored by a take back. Checkpoints hold only its commit and a take back never touches its files, so it now says so instead: `! Git repos inside the project aren't in checkpoints: vendor/lib.`
+- The README lists what can't be taken back: files in nested git repos, empty folders, and case-only renames on macOS and Windows.
+
 ## 0.4.5 (2026-10-08)
 
 - Every plugin command and skill is named after takeback, so they stand out in the Claude Code and Codex skill lists. The Claude Code commands are now `/takeback:takeback` (was `/takeback:undo`), `/takeback:takeback-to`, `/takeback:takeback-log` and `/takeback:takeback-diff`, matching `takeback`, `takeback to`, `takeback log` and `takeback diff` in the terminal. The skill for reading checkpoints is `takeback-checkpoints` in both agents.
