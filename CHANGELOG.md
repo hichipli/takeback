@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 (2026-10-08)
+
+- The checkpoint saved after a turn is labeled with that turn's prompt, like `claude · after "delete the changelog"`. Before, most checkpoints read `after turn`, since the one saved before a prompt is skipped when nothing changed, so `takeback log` couldn't tell turns apart. Now it works as an index for people and agents.
+
 ## 0.4.2 (2026-10-08)
 
 - The "git moved" note also covers checkpoints that have no git record: ones saved before 0.4.1, or before the project's first commit. If the current commit was made after the checkpoint, takeback says so.
