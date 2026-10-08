@@ -29,8 +29,16 @@ You need three facts about the agent: the file it reads hooks from, the events i
 
 ## Releasing (maintainers)
 
+In the release pull request, bump the version and add the changes to `CHANGELOG.md`:
+
 ```bash
-npm version <patch|minor|major>
-git push --follow-tags
-npm publish
+npm version <patch|minor|major> --no-git-tag-version
 ```
+
+Set the same version in `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`. After the pull request merges, tag the merge commit and push the tag:
+
+```bash
+git tag v<version> && git push origin v<version>
+```
+
+The [release workflow](.github/workflows/release.yml) then publishes to npm from GitHub Actions, through npm's trusted publishing.

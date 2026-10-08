@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4 (2026-10-08)
+
+- A redesigned README, with pictures of what takeback restores, how it works and how agents use it. This release brings it to the npm page.
+- Releases are published from GitHub Actions through npm's trusted publishing, with provenance, so npm shows which commit and workflow built each version.
+
 ## 0.4.3 (2026-10-08)
 
 - The checkpoint saved after a turn is labeled with that turn's prompt, like `claude · after "delete the changelog"`. Before, most checkpoints read `after turn`, since the one saved before a prompt is skipped when nothing changed, so `takeback log` couldn't tell turns apart. Now it works as an index for people and agents.
