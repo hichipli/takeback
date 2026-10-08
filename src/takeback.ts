@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -163,7 +163,8 @@ function commitIfChanged(s: Store, label: string): string | null {
 /** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */
 function withScratchIndex<T>(s: Store, fn: (env: Record<string, string>) => T): T {
   const index = join(tmpdir(), `takeback-index-${process.pid}-${Date.now()}`)
-  if (existsSync(join(s.gitDir, 'index'))) copyFileSync(join(s.gitDir, 'index'), index)
+  // Keep the index's mtime: git rechecks files changed in the same second as the index only if it can tell.
+  if (existsSync(join(s.gitDir, 'index'))) cpSync(join(s.gitDir, 'index'), index, { preserveTimestamps: true })
   try {
     const env = { GIT_INDEX_FILE: index }
     s.git(['add', '-A', '--ignore-errors'], env)
