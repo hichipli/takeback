@@ -42,7 +42,8 @@ Using Codex? `init` installs the takeback plugin for it. Codex runs new hooks on
 - **It catches what built-in undo misses.** Claude Code's `/rewind` skips files changed through Bash, most subagents and other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)). The Codex CLI [dropped `/undo`](https://github.com/openai/codex/issues/9203). takeback snapshots the whole folder, whoever changed it.
 - **One setup for every project and agent.** `init` covers Claude Code and Codex wherever you run them: terminal, desktop app or IDE. `takeback watch` covers everything else.
 - **It can't make things worse.** Every take back saves where you are first. Your `.git` is never touched, and files your `.gitignore` protects, like `.env`, are never deleted.
-- **Small enough to read.** Under 700 lines of TypeScript, zero dependencies, nothing leaves your machine. [Read it](src/) before you run it.
+- **Your agent can use it too.** Ask it to go back to an earlier version and it reads the exact files from a checkpoint instead of rebuilding them from memory. [More below](#your-agent-can-use-it-too).
+- **Small enough to read.** Under 900 lines of TypeScript, zero dependencies, nothing leaves your machine. [Read it](src/) before you run it.
 
 |  | takeback | Claude Code `/rewind` | git |
 | --- | --- | --- | --- |
@@ -63,6 +64,7 @@ Commands are shown without `npx`; add it if you haven't installed takeback globa
 | See every checkpoint | `takeback log` | `/takeback:log` |
 | Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
 | See the last turn as a patch | `takeback diff` | `/takeback:diff` |
+| See a file as it was at a checkpoint | `takeback show 3f9c2a1 src/app.ts` | Ask Claude |
 | Save a checkpoint by hand | `takeback save "before the refactor"` | |
 
 Every take back prints how to undo it, so you can't lose work by going back too far.
@@ -73,6 +75,18 @@ $ takeback log
   bb9958d  2 minutes ago   claude · after turn · 3 files
   966e3c5  3 minutes ago   claude · before "clean up the build scripts" · 3 files
 ```
+
+### Your agent can use it too
+
+"Go back to the version from before" is hard for an agent. In a long conversation its memory of earlier files gets summarized, and git only has what was committed. Checkpoints hold every turn exactly, and an agent can read them like you do:
+
+```bash
+takeback log                        # which turn was which
+takeback show 3f9c2a1 src/app.ts    # a file exactly as it was
+takeback diff 3f9c2a1               # everything that changed since
+```
+
+With the Claude Code plugin, Claude knows to look there on its own, and restores only when you ask. Any other agent can run the same commands when you tell it to; reading needs no write access, so it works inside Codex's sandbox too.
 
 ### Plugins
 
@@ -86,7 +100,7 @@ takeback is also a plugin for Claude Code and for Codex, so each agent lists its
 
 On Claude Code older than 2.1.275, run `/plugin marketplace add hichipli/takeback` first, then `/plugin install takeback@takeback`.
 
-You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to`, `/takeback:diff` and `/takeback:log`, and Claude sees what was taken back. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
+You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to`, `/takeback:diff` and `/takeback:log`, and Claude sees what was taken back. Claude also learns to read earlier versions from checkpoints when you ask for one. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
 
 **Codex.** `npx takeback init` installs the plugin for you when the `codex` command is available. To install it yourself:
 

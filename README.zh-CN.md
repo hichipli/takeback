@@ -38,7 +38,8 @@ npx takeback
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)）。Codex CLI [去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。takeback 给整个文件夹拍快照，不管是谁改的。
 - **一次设置，所有项目、所有智能体。** `init` 覆盖你在任何地方用的 Claude Code 和 Codex：终端、桌面 App、IDE。其他工具用 `takeback watch`。
 - **不会让情况更糟。** 每次撤销前都先保存当前状态。从不碰你的 `.git`，也从不删除 `.gitignore` 保护的文件，比如 `.env`。
-- **小到可以读完。** 不到 700 行 TypeScript，零依赖，数据不离开你的电脑。运行之前可以先[读一遍](src/)。
+- **智能体也能用。** 让它"回到之前那个版本"时，它会直接从检查点读出当时的文件，而不是凭记忆重写。[详见下文](#智能体也能用)。
+- **小到可以读完。** 不到 900 行 TypeScript，零依赖，数据不离开你的电脑。运行之前可以先[读一遍](src/)。
 
 |  | takeback | Claude Code `/rewind` | git |
 | --- | --- | --- | --- |
@@ -59,9 +60,22 @@ npx takeback
 | 查看所有检查点 | `takeback log` | `/takeback:log` |
 | 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
 | 以 patch 形式查看上一轮的改动 | `takeback diff` | `/takeback:diff` |
+| 查看某个文件在检查点时的内容 | `takeback show 3f9c2a1 src/app.ts` | 直接问 Claude |
 | 手动保存一个检查点 | `takeback save "重构之前"` | |
 
 每次撤销都会告诉你怎么撤回这次撤销，所以退过头也不会丢东西。
+
+### 智能体也能用
+
+"回到之前那个版本"对智能体来说其实很难：对话一长，它对早先文件的记忆会被压缩成摘要；git 里也只有提交过的内容。检查点精确保存了每一轮，智能体可以像你一样直接读取：
+
+```bash
+takeback log                        # 哪个检查点对应哪一轮
+takeback show 3f9c2a1 src/app.ts    # 某个文件当时的原样
+takeback diff 3f9c2a1               # 从那以后改了什么
+```
+
+装了 Claude Code 插件后，Claude 会自己想到去查检查点，并且只在你要求时才恢复。其他智能体在你告诉它之后，也能运行同样的命令；读取不需要写权限，在 Codex 的沙盒里也能用。
 
 ### 插件
 
@@ -75,7 +89,7 @@ takeback 也是 Claude Code 和 Codex 的插件，两边都会用名字列出它
 
 Claude Code 低于 2.1.275 的话，先运行 `/plugin marketplace add hichipli/takeback`，再运行 `/plugin install takeback@takeback`。
 
-同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to`、`/takeback:diff` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
+同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to`、`/takeback:diff` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。你想要某个旧版本时，Claude 也会去检查点里读取。如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
 
 **Codex。** 只要电脑上有 `codex` 命令，`npx takeback init` 会自动帮你装好插件。想自己装的话：
 
