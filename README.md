@@ -1,17 +1,25 @@
 <div align="center">
 
-<img src="assets/readme/banner.png" width="880" alt="takeback: Ctrl+Z for AI coding agents. Run npx takeback.">
+<img src="assets/logo.svg" width="88" alt="takeback">
 
-**Your agent ran `rm -rf`, rewrote 40 files, or "fixed" the wrong thing.<br>
-One command puts it all back, including what it changed through Bash.**
+# takeback
 
-[![npm](https://img.shields.io/npm/v/takeback?color=3fb950)](https://www.npmjs.com/package/takeback)
+**Ctrl+Z for AI coding agents.**
+
+Your agent ran `rm -rf`, rewrote 40 files, or "fixed" the wrong thing.<br>
+One command puts it all back, including what it changed through Bash.
+
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
-[![Dependencies: 0](https://img.shields.io/badge/dependencies-0-3fb950)](package.json)
-[![Node](https://img.shields.io/node/v/takeback?color=3fb950)](package.json)
-[![License: MIT](https://img.shields.io/badge/license-MIT-3fb950)](LICENSE)
+[![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Quick start](#quick-start) · [Why](#why-takeback) · [How it works](#how-it-works) · [Commands](#commands) · [For agents](#your-agent-can-use-it-too) · [FAQ](#faq) · [简体中文](README.zh-CN.md)
+English · [简体中文](README.zh-CN.md)
+
+<img src="assets/readme/banner.png" width="880" alt="Every turn saved, one command back: npx takeback. 0.1 s per checkpoint, 0 dependencies, about 900 lines to read, 30 days of history.">
+
+**Works with Claude Code and Codex in the terminal, desktop apps and IDEs.**<br>
+**Any other agent with `takeback watch`.**<br>
+<sub>Your `.git` is never touched, files your `.gitignore` protects are never deleted, and nothing leaves your machine.</sub>
 
 <img src="docs/demo.svg" width="860" alt="An agent deletes scripts/ through Bash, and npx takeback restores it with one command">
 

@@ -1,17 +1,25 @@
 <div align="center">
 
-<img src="assets/readme/banner.png" width="880" alt="takeback：AI 编程智能体的 Ctrl+Z。运行 npx takeback。">
+<img src="assets/logo.svg" width="88" alt="takeback">
 
-**智能体跑了 `rm -rf`、改坏了 40 个文件，或者"修好"了不该动的地方？<br>
-一条命令全部恢复，包括它通过 Bash 改动的文件。**
+# takeback
 
-[![npm](https://img.shields.io/npm/v/takeback?color=3fb950)](https://www.npmjs.com/package/takeback)
+**AI 编程智能体的 Ctrl+Z。**
+
+智能体跑了 `rm -rf`、改坏了 40 个文件，或者"修好"了不该动的地方？<br>
+一条命令全部恢复，包括它通过 Bash 改动的文件。
+
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
-[![Dependencies: 0](https://img.shields.io/badge/dependencies-0-3fb950)](package.json)
-[![Node](https://img.shields.io/node/v/takeback?color=3fb950)](package.json)
-[![License: MIT](https://img.shields.io/badge/license-MIT-3fb950)](LICENSE)
+[![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[快速开始](#快速开始) · [为什么](#为什么用-takeback) · [工作原理](#工作原理) · [命令](#命令) · [智能体](#智能体也能用) · [常见问题](#常见问题) · [English](README.md)
+[English](README.md) · 简体中文
+
+<img src="assets/readme/banner.png" width="880" alt="每一轮都有存档，一条命令就能回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
+
+**支持终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。**<br>
+**其他智能体用 `takeback watch`。**<br>
+<sub>从不碰你的 `.git`，从不删除 `.gitignore` 保护的文件，数据不离开你的电脑。</sub>
 
 <img src="docs/demo.svg" width="860" alt="智能体通过 Bash 删掉了 scripts/，npx takeback 一条命令恢复">
 
