@@ -172,7 +172,11 @@ takeback puts the files back and leaves git history alone, so they show up as un
 <details>
 <summary><b>What can't it take back?</b></summary>
 
-Files your `.gitignore` excludes (such as `.env` or `dist/`), anything outside the project folder, and side effects like database writes, package installs or `git push`.
+- Files your `.gitignore` excludes, such as `.env` or `dist/`.
+- Anything outside the project folder, and side effects like database writes, package installs or `git push`.
+- Files inside a git repo nested in the project, such as a submodule. Checkpoints hold only its commit, so a take back names it and leaves it alone.
+- Empty folders, which git doesn't store.
+- On macOS and Windows, a rename that only changes letter case. The content comes back; the name keeps its new case.
 
 </details>
 

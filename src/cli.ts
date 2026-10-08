@@ -99,8 +99,12 @@ const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted'
 const WOULD: Record<string, string> = { A: 'restore', D: 'remove', M: 'revert', K: 'keep' }
 
 function takeBack(target: string | undefined, paths: string[], dryRun: boolean) {
-  const { to, saved, changes, git } = undo(process.cwd(), target, paths, dryRun)
-  if (!changes.length) return console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
+  const { to, saved, changes, git, nested } = undo(process.cwd(), target, paths, dryRun)
+  const inner = () => nested.length && console.log(yellow(`   ! Git repos inside the project aren't in checkpoints: ${nested.slice(0, 3).join(', ')}${nested.length > 3 ? ', …' : ''}.`))
+  if (!changes.length) {
+    console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
+    return inner()
+  }
   const what = paths.length ? ` ${paths.join(', ')}` : ''
   const head = dryRun ? `${yellow('?')}  Would take back` : `${green('↩')}  Took back`
   console.log(`${head}${what} to ${yellow(short(to.id))} ${dim('·')} ${to.label} ${dim(`· ${ago(to.time)}`)}`)
@@ -113,6 +117,7 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
     console.log(yellow(git.then ? `   ! git moved since then: ${git.then} → ${git.now}.` : `   ! git has new commits since then (now ${git.now}).`))
     console.log(yellow('     Files come back as uncommitted changes; your commits stay.'))
   }
+  inner()
   if (dryRun) {
     const again = command(...(target ? ['to', target] : []), ...paths)
     return console.log(dim(`   Nothing changed yet. Run \`${again}\` to do it, or \`${command('diff')}\` for the full patch.`))

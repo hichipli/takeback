@@ -20,6 +20,8 @@ export interface TakeBack {
   changes: [status: string, path: string][]
   /** Set when the project's own git branch or commit moved since the checkpoint, as "branch sha7". */
   git?: { then?: string; now: string }
+  /** Git repos inside the project, such as submodules: checkpoints hold only their commit, not their files. */
+  nested: string[]
 }
 
 interface Store {
@@ -310,16 +312,25 @@ function ignoredAt(s: Store, to: string, paths: string[]): Set<string> {
   }
 }
 
-const nameStatus = (out: string) => {
+// A git repo inside the project is stored as its commit (mode 160000), and a take back never touches its files,
+// so it isn't reported as a change.
+const GITLINK = '160000'
+const rawStatus = (out: string) => {
   const f = out.split('\0')
   const pairs: [string, string][] = []
-  for (let i = 0; i + 1 < f.length; i += 2) if (f[i]) pairs.push([f[i], f[i + 1]])
+  for (let i = 0; i + 1 < f.length; i += 2) {
+    const [from, to, , , status] = f[i].slice(1).split(' ')
+    if (f[i] && from !== GITLINK && to !== GITLINK) pairs.push([status, f[i + 1]])
+  }
   return pairs
 }
 
+const nestedRepos = (s: Store, env?: Record<string, string>) =>
+  s.git(['ls-files', '-s', '-z'], env).split('\0').filter((e) => e.startsWith(GITLINK)).map((e) => e.slice(e.indexOf('\t') + 1))
+
 /** Changes from the current files to checkpoint `to`, with removals the checkpoint ignores marked K (kept). */
 function plan(s: Store, to: string, scope: string[], env?: Record<string, string>): [string, string][] {
-  const changes = nameStatus(s.git(['diff', '--cached', '-R', '--name-status', '--no-renames', '-z', to, ...scope], env))
+  const changes = rawStatus(s.git(['diff', '--cached', '-R', '--raw', '--no-renames', '-z', to, ...scope], env))
   const kept = ignoredAt(s, to, changes.filter(([st]) => st === 'D').map(([, f]) => f))
   return changes.map(([st, f]) => [kept.has(f) ? 'K' : st, f])
 }
@@ -404,7 +415,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
     if (dryRun) {
       return withScratchIndex(s, (env) => {
         const to = pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0, target)
-        return { to: info(s, to), saved: head, changes: plan(s, to, scope, env), git: gitMoved(s, to) }
+        return { to: info(s, to), saved: head, changes: plan(s, to, scope, env), git: gitMoved(s, to), nested: rels.length ? [] : nestedRepos(s, env) }
       })
     }
 
@@ -430,7 +441,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
       const body = [`Restored: ${to}`, ...(paths.length ? [`Paths: ${paths.join(' ')}`] : [])].join('\n')
       s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', `takeback ${what}to ${to.slice(0, 7)}`, '-m', body])
     }
-    return { to: info(s, to), saved: before, changes, git: gitMoved(s, to) }
+    return { to: info(s, to), saved: before, changes, git: gitMoved(s, to), nested: rels.length ? [] : nestedRepos(s) }
   }
   return dryRun ? readStore(dir, run) : withStore(dir, run)
 }
