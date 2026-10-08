@@ -18,7 +18,7 @@ English · [简体中文](README.zh-CN.md)
 
 ## Quick start
 
-takeback is a small command-line tool, and it protects your files wherever you use your agent: in a terminal, in the Claude desktop app or in your IDE ([details](#where-it-works)). Set it up once:
+takeback is a small command-line tool, and it protects your files wherever you use your agent: in a terminal, in the Claude or ChatGPT desktop app, or in your IDE ([details](#where-it-works)). Set it up once:
 
 ```bash
 npx takeback init
@@ -74,10 +74,10 @@ takeback protects the files on your computer that coding agents change.
 | Where you run the agent | Setup |
 | --- | --- |
 | Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`. They all read the same hooks from `~/.claude/settings.json` ([docs](https://code.claude.com/docs/en/desktop#shared-configuration)). |
-| Codex CLI | `npx takeback init`, then trust the hooks once with `/hooks` |
-| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, the Codex app, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
-| Claude Code on the web and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
-| ChatGPT, Claude chat and other chat apps | Not needed: they don't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
+| Codex in the terminal or in the ChatGPT desktop app (local threads) | `npx takeback init`, then approve the new hooks once when Codex asks (`/hooks` in the terminal). The app runs the same Codex engine and reads the same `~/.codex` config. |
+| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
+| Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
+| Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
 
 ## How it works
 

@@ -129,7 +129,7 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
     const file = hookFile(agent, scope)
     const changed = installHooks(file, `${command} save --hook ${agent}`, remove)
     const state = remove ? (changed ? 'hooks removed from' : 'no hooks in') : changed ? 'checkpoint hooks added to' : 'already set up in'
-    const trust = agent === 'codex' && changed && !remove ? dim(' (run /hooks in Codex once to trust them)') : ''
+    const trust = agent === 'codex' && changed && !remove ? dim(' (Codex asks you to review new hooks once)') : ''
     console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}${trust}`)
   }
   if (remove) return
