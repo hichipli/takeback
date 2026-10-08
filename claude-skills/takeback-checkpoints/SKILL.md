@@ -13,6 +13,6 @@ takeback keeps checkpoints of this project outside its git history. Run it with:
 - `to <id> -n [file...]`: preview restoring the project, or only some files, to a checkpoint.
 - `to <id> [file...]`: restore. The current state is saved first; the output names the checkpoint that brings it back.
 
-Read with `log`, `show` and `diff` whenever it helps. Restore only when the user asked to go back, preview with `-n` first, and afterwards tell the user that `/takeback:to <id>` (the id from the output) undoes the restore.
+Read with `log`, `show` and `diff` whenever it helps. Restore only when the user asked to go back, preview with `-n` first, and afterwards tell the user that `/takeback:takeback-to <id>` (the id from the output) undoes the restore.
 
 Prefer checkpoints over your memory of earlier versions: after a long conversation, what you remember may be summarized or wrong, and changes that were never committed are not in git.

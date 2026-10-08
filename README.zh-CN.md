@@ -68,14 +68,14 @@ npx takeback
 
 | 你想 | 终端 | Claude Code 插件 |
 | --- | --- | --- |
-| 撤销智能体的上一轮 | `takeback` | [`/takeback:undo`](claude-skills/undo/SKILL.md) |
-| 先看看会改什么 | `takeback -n` | `/takeback:undo -n` |
-| 再往前退一轮 | 再运行一次 `takeback` | 再运行一次 `/takeback:undo` |
-| 只撤销上一轮对某个文件的改动 | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
-| 查看所有检查点 | `takeback log` | [`/takeback:log`](claude-skills/log/SKILL.md) |
-| 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | [`/takeback:to 3f9c2a1`](claude-skills/to/SKILL.md) |
-| 以 patch 形式查看上一轮的改动 | `takeback diff` | [`/takeback:diff`](claude-skills/diff/SKILL.md) |
-| 查看某个文件在检查点时的内容 | `takeback show 3f9c2a1 src/app.ts` | [直接问 Claude](claude-skills/checkpoints/SKILL.md) |
+| 撤销智能体的上一轮 | `takeback` | [`/takeback:takeback`](claude-skills/takeback/SKILL.md) |
+| 先看看会改什么 | `takeback -n` | `/takeback:takeback -n` |
+| 再往前退一轮 | 再运行一次 `takeback` | 再运行一次 `/takeback:takeback` |
+| 只撤销上一轮对某个文件的改动 | `takeback src/app.ts` | `/takeback:takeback src/app.ts` |
+| 查看所有检查点 | `takeback log` | [`/takeback:takeback-log`](claude-skills/takeback-log/SKILL.md) |
+| 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` | [`/takeback:takeback-to 3f9c2a1`](claude-skills/takeback-to/SKILL.md) |
+| 以 patch 形式查看上一轮的改动 | `takeback diff` | [`/takeback:takeback-diff`](claude-skills/takeback-diff/SKILL.md) |
+| 查看某个文件在检查点时的内容 | `takeback show 3f9c2a1 src/app.ts` | [直接问 Claude](claude-skills/takeback-checkpoints/SKILL.md) |
 | 手动保存一个检查点 | `takeback save "重构之前"` | |
 
 每次撤销都会告诉你怎么撤回这次撤销，所以退过头也不会丢东西。
@@ -99,7 +99,7 @@ takeback show 3f9c2a1 src/app.ts    # 某个文件当时的原样
 takeback diff 3f9c2a1               # 从那以后改了什么
 ```
 
-装了插件后，智能体会自己想到去查检查点，并且只在你要求时才恢复，见 [Claude Code](claude-skills/checkpoints/SKILL.md) 和 [Codex](codex-skills/checkpoints/SKILL.md) 的技能说明。读取不需要写权限，在 Codex 的沙盒里也能用。其他智能体在你告诉它之后，也能运行同样的命令。
+装了插件后，智能体会自己想到去查检查点，并且只在你要求时才恢复，见 [Claude Code](claude-skills/takeback-checkpoints/SKILL.md) 和 [Codex](codex-skills/takeback-checkpoints/SKILL.md) 的技能说明。读取不需要写权限，在 Codex 的沙盒里也能用。其他智能体在你告诉它之后，也能运行同样的命令。
 
 ## 在哪里能用
 

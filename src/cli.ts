@@ -91,8 +91,8 @@ function hook(flag: string) {
 let slash = false
 const command = (...args: string[]) => {
   if (!slash) return ['takeback', ...args].join(' ')
-  const [name, ...rest] = args[0] === 'to' || args[0] === 'diff' ? args : ['undo', ...args]
-  return [`/takeback:${name}`, ...rest].join(' ')
+  const sub = args[0] === 'to' || args[0] === 'diff' ? `-${args.shift()}` : ''
+  return [`/takeback:takeback${sub}`, ...args].join(' ')
 }
 
 const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted', K: 'kept' }
