@@ -15,7 +15,7 @@ One command puts it all back, including what it changed through Bash.
 
 English · [简体中文](README.zh-CN.md)
 
-<img src="assets/readme/banner.png" width="880" alt="Every turn saved, one command back: npx takeback. 0.1 s per checkpoint, 0 dependencies, about 900 lines to read, 30 days of history.">
+<img src="assets/readme/banner.png" width="880" alt="Ctrl+Z for AI coding agents. Every turn saved, one command back: npx takeback. 0.1 s per checkpoint, 0 dependencies, about 900 lines to read, 30 days of history.">
 
 **Works with Claude Code and Codex in the terminal, desktop apps and IDEs.**<br>
 **Any other agent with `takeback watch`.**<br>

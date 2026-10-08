@@ -5,9 +5,10 @@
   </defs>
   <rect width="1760" height="560" rx="32" fill="url(#bg)"/><rect width="1760" height="560" rx="32" fill="url(#glow)"/>
   <rect x="1" y="1" width="1758" height="558" rx="31" fill="none" stroke="#30363d" stroke-width="2"/>
-  <text x="112" y="210" font-family="Avenir Next" font-weight="600" font-size="84" letter-spacing="-2" fill="#e6edf3">Every turn saved.</text>
-  <text x="112" y="308" font-family="Avenir Next" font-weight="600" font-size="84" letter-spacing="-2" fill="#e6edf3">One command back.</text>
-  <text x="116" y="404" font-family="Menlo" font-size="34" fill="#3fb950"><tspan fill="#6e7681">$</tspan><tspan dx="21">npx takeback</tspan></text>
+  <text x="112" y="180" font-family="Avenir Next" font-weight="600" font-size="84" letter-spacing="-2" fill="#e6edf3">Ctrl+Z for</text>
+  <text x="112" y="274" font-family="Avenir Next" font-weight="600" font-size="84" letter-spacing="-2" fill="#e6edf3">AI coding agents.</text>
+  <text x="114" y="358" font-family="Avenir Next" font-size="34" fill="#8b949e">Every turn saved. One command back.</text>
+  <text x="116" y="434" font-family="Menlo" font-size="34" fill="#3fb950"><tspan fill="#6e7681">$</tspan><tspan dx="21">npx takeback</tspan></text>
   <line x1="1020" y1="128" x2="1020" y2="432" stroke="#21262d" stroke-width="2"/>
   <text x="1110" y="200" font-family="Avenir Next" font-weight="600" font-size="72" letter-spacing="-1" fill="#e6edf3">0.1<tspan font-family="Avenir Next" font-size="34" font-weight="500" fill="#8b949e" dx="8">s</tspan></text>
   <text x="1112" y="246" font-family="Avenir Next" font-size="28" fill="#8b949e">per checkpoint</text>

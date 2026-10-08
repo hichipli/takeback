@@ -15,7 +15,7 @@
 
 [English](README.md) · 简体中文
 
-<img src="assets/readme/zh-CN/banner.png" width="880" alt="每一轮都有存档，一条命令就能回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
+<img src="assets/readme/zh-CN/banner.png" width="880" alt="AI 编程智能体的 Ctrl+Z。每一轮都有存档，一条命令就回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
 
 **支持终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。**<br>
 **其他智能体用 `takeback watch`。**<br>
