@@ -1,6 +1,6 @@
 {
   "name": "takeback",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Ctrl+Z for AI coding agents. Undo any turn of Claude Code, Codex, Cursor & co, including files changed through Bash.",
   "keywords": [
     "claude-code",

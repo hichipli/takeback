@@ -18,20 +18,22 @@ English · [简体中文](README.zh-CN.md)
 
 ## Quick start
 
+Set it up once:
+
 ```bash
 npx takeback init
 ```
 
-That's the whole setup. From now on Claude Code and Codex save a checkpoint before every prompt and after every turn. When an agent wrecks something:
+From now on, Claude Code and Codex save a checkpoint before every prompt and after every turn, in every project. Nothing else to install or run.
+
+When an agent breaks something, run this in the project folder:
 
 ```bash
 npx takeback
 ```
 
-Using Cursor, Gemini CLI, OpenCode, Aider, or anything else? Run `npx takeback watch` in a terminal next to it.
-
 > [!TIP]
-> `npm i -g takeback` makes the hooks start faster than `npx`. Run `takeback init` again after installing.
+> Inside Claude Code you don't even have to leave the chat: type `!npx takeback`. Claude sees what was restored.
 
 ## Why
 
@@ -43,25 +45,20 @@ Built-in undo has holes:
 
 Git only helps if you remembered to commit right before you pressed Enter. takeback snapshots the **whole project folder** at every turn, no matter which tool touched the files.
 
-## How it works
+## Using it
 
-- `takeback init` adds two hooks to Claude Code and Codex: one saves a checkpoint **before every prompt**, the other **after every turn**.
-- Checkpoints go to a separate git repository in `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo at all.
-- It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`, so ignored builds and secrets stay out.
-- `takeback` saves where you are before it restores anything, so every take back can be taken back.
-- Everything stays on your machine. No daemon, no account, no telemetry, zero runtime dependencies.
-
-## Commands
-
-| Command | What it does |
+| You want to | Run |
 | --- | --- |
-| `takeback` | Take back the last turn. Run it again to keep going back. |
-| `takeback log` | List checkpoints, newest first |
-| `takeback to <id>` | Restore any checkpoint (this is also how you redo) |
-| `takeback diff [from] [to]` | Show what changed since a checkpoint (`--stat` for a summary) |
-| `takeback save [message]` | Save a checkpoint by hand |
-| `takeback watch` | Save a checkpoint whenever files settle; works with any tool |
-| `takeback init [claude\|codex]` | Install the hooks globally; `--project` for this project only, `--remove` to uninstall |
+| Undo the agent's last turn | `takeback` |
+| Go back one more turn | `takeback` again |
+| Undo the last turn for one file only | `takeback src/app.ts` |
+| See every checkpoint | `takeback log` |
+| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` |
+| Restore one file from any checkpoint | `takeback to 3f9c2a1 src/app.ts` |
+| See what changed since a checkpoint | `takeback diff [id]` (`--stat` for a summary) |
+| Save a checkpoint by hand | `takeback save "before the big refactor"` |
+
+Every take back saves where you are first and prints how to get back, so you can't lose work by taking back too far.
 
 ```console
 $ takeback log
@@ -70,15 +67,24 @@ $ takeback log
   966e3c5  3 minutes ago   claude · before "clean up the build scripts" · 3 files
 ```
 
-## Supported agents
+## Where it works
 
-| Agent | Setup | When checkpoints are saved |
-| --- | --- | --- |
-| Claude Code | `takeback init claude` | Before every prompt, after every turn |
-| Codex CLI | `takeback init codex`, then trust the hook once with `/hooks` | Before every prompt, after every turn |
-| Cursor, Gemini CLI, OpenCode, Aider, Cline, DeepSeek Harness, your own scripts | `takeback watch` | 1.5 s after files stop changing |
+takeback protects the files on your computer that coding agents change.
 
-Native hooks for more agents are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+| Where you run the agent | Setup |
+| --- | --- |
+| Claude Code in the terminal, the desktop app, or VS Code / JetBrains | `npx takeback init` (they share `~/.claude/settings.json`) |
+| Codex CLI | `npx takeback init`, then trust the hooks once with `/hooks` |
+| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, the Codex app, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
+| ChatGPT, Claude.ai and other chat apps | Nothing to do. They don't change files on your disk. |
+
+## How it works
+
+- `init` adds two hooks to Claude Code and Codex: one before every prompt, one after every turn. It also copies takeback (about 20 KB, zero dependencies) to `~/.takeback/app`, so hooks take about 0.1 s and don't depend on npm.
+- Checkpoints go to a separate git repository in `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo at all.
+- It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`.
+- Checkpoints older than 30 days are dropped automatically, the same retention Claude Code uses for its own.
+- Everything stays on your machine. No daemon, no account, no telemetry.
 
 ## FAQ
 
@@ -86,17 +92,18 @@ Native hooks for more agents are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 **What can't it take back?** Files your `.gitignore` excludes (such as `.env` or `dist/`), anything outside the project folder, and side effects like database writes, package installs or `git push`.
 
-**Does it slow my agent down?** The first checkpoint of a project stores a compressed copy of it, which takes a few seconds on large projects (3.6 s for an 850-file app). After that a hook call takes about 0.1 s.
+**Does it slow my agent down?** The first checkpoint of a project stores a compressed copy of it, which takes a few seconds on large projects (3.6 s for an 850-file app). After that each hook call takes about 0.1 s.
 
-**Where is my data?** In `~/.takeback/<project>-<hash>/`, one store per project. Delete it any time. Checkpoint labels include the first 60 characters of your prompt. Nothing leaves your machine.
+**How much disk does it use?** Git stores each version of a file once, compressed. Old checkpoints go after 30 days. To free space now, run `takeback prune`; `takeback prune --keep 7d` keeps only the last week. Prune also deletes checkpoints of folders that no longer exist.
 
-**How do I uninstall?** `takeback init --remove`, then `rm -rf ~/.takeback`.
+**How do I update?** `npx takeback@latest init`.
+
+**How do I uninstall?** `npx takeback init --remove`, then `rm -rf ~/.takeback`.
 
 ## Roadmap
 
 - [ ] Native hooks for Gemini CLI, OpenCode and DeepSeek Harness
-- [ ] `takeback prune` to cap disk usage
-- [ ] Take back a single file: `takeback to <id> -- path`
+- [ ] Claude Code plugin
 - [ ] Interactive timeline picker
 
 ## Contributing

@@ -13,7 +13,7 @@ npm test
 node src/cli.ts --help      # run from source
 ```
 
-To try your build with real agents: `npm run build && npm link`, then `takeback init`.
+To try your changes with real agents, run `node src/cli.ts init`: the hooks then run your working copy until you run `npx takeback@latest init` again.
 
 ## Pull requests
 

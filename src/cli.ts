@@ -1,26 +1,31 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process'
-import { readFileSync, watch } from 'node:fs'
+import { existsSync, readFileSync, watch } from 'node:fs'
+import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
-import { AGENTS, diff, hookFile, installHooks, list, projectRoot, save, undo, type Agent, type Checkpoint } from './takeback.ts'
+import { AGENTS, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 const HELP = `takeback ${VERSION}: Ctrl+Z for AI coding agents
 
-Usage
-  takeback                    Take back the last turn (restore the previous checkpoint)
-  takeback to <checkpoint>    Restore any checkpoint from \`takeback log\`
-  takeback log [-n 20]        List checkpoints, newest first
-  takeback diff [from] [to]   Show changes since a checkpoint (default: the latest)
-  takeback save [message]     Save a checkpoint now
-  takeback watch              Save checkpoints whenever files settle (works with any agent)
-  takeback init [agent]       Save a checkpoint before every prompt and after every turn
-                              in Claude Code and Codex (agent: ${AGENTS.join(' | ')}; default: both)
-      --project               Install hooks for this project only instead of globally
-      --remove                Remove the hooks again
+Set up once
+  npx takeback init             Checkpoint every prompt and turn in Claude Code and Codex
+                                (init claude | init codex for one of them, --project for
+                                this folder only, --remove to undo the setup)
+  npx takeback watch            Or keep this running next to any other tool
 
-Checkpoints live in ~/.takeback, outside your project. Your own .git is never touched.
+Take back
+  takeback                      Take back the last turn. Run it again to go further back.
+  takeback <file>...            Take back the last turn for these files only
+  takeback to <id> [file...]    Restore the project, or some files, to any checkpoint
+
+Look around
+  takeback log [-n 20]          Checkpoints, newest first
+  takeback diff [from] [to]     Changes since a checkpoint (default: the latest); --stat to summarize
+  takeback save [message]       Save a checkpoint now
+  takeback prune [--keep 7d]    Free disk space now (checkpoints older than ${KEEP_DAYS} days go on their own)
+
+Everything takeback stores lives in ~/.takeback. Your own .git is never touched.
 https://github.com/hichipli/takeback`
 
 const tty = process.stdout.isTTY && !process.env.NO_COLOR
@@ -37,11 +42,13 @@ function ago(t: Date) {
 }
 
 const short = (id: string) => id.slice(0, 7)
+const tilde = (p: string) => (p.startsWith(homedir()) ? `~${p.slice(homedir().length)}` : p)
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const size = (bytes: number) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(Math.max(bytes, 0) / 1e3)} KB`)
 const oneLine = (s: string, max = 60) => {
   const t = s.replace(/\s+/g, ' ').trim()
   return t.length > max ? `${t.slice(0, max - 1)}…` : t
 }
-const describe = (c?: Checkpoint) => (c ? `${c.label} ${dim(`(${ago(c.time)})`)}` : '')
 
 /** Hook mode: called by an agent with a JSON payload on stdin. Must stay silent and never fail the agent. */
 function hook(agent: string) {
@@ -61,19 +68,24 @@ function hook(agent: string) {
   }
 }
 
-function takeBack(target?: string) {
-  const { to, saved } = undo(process.cwd(), target)
-  const byId = new Map(list(process.cwd(), 200).map((c) => [c.id, c]))
-  console.log(`${green('↩')}  Took back to ${yellow(short(to))}  ${describe(byId.get(to))}`)
-  console.log(dim(`   Previous state saved as ${short(saved)}. Bring it back: takeback to ${short(saved)}`))
+const DID: Record<string, string> = { A: 'restored', D: 'removed', M: 'reverted' }
+
+function takeBack(target: string | undefined, paths: string[]) {
+  const { to, saved, changes } = undo(process.cwd(), target, paths)
+  if (!changes.length) return console.log(dim(`Nothing to take back: ${paths.join(', ') || 'everything'} already matches ${short(to.id)}.`))
+  const what = paths.length ? ` ${paths.join(', ')}` : ''
+  console.log(`${green('↩')}  Took back${what} to ${yellow(short(to.id))} ${dim('·')} ${to.label} ${dim(`· ${ago(to.time)}`)}`)
+  for (const [status, path] of changes.slice(0, 8)) console.log(`   ${dim((DID[status] ?? 'reverted').padEnd(10))}${path}`)
+  if (changes.length > 8) console.log(dim(`   …and ${changes.length - 8} more`))
+  console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
 }
 
 function log(limit: number) {
   const items = list(process.cwd(), limit)
-  if (!items.length) return console.log('No checkpoints yet. Run `takeback init` or `takeback watch` first.')
-  console.log(dim(projectRoot(process.cwd())))
+  if (!items.length) return console.log('No checkpoints yet. Run `npx takeback init` or `npx takeback watch` first.')
+  console.log(dim(tilde(projectRoot(process.cwd()))))
   for (const c of items) {
-    const files = c.files ? dim(` · ${c.files} file${c.files === 1 ? '' : 's'}`) : ''
+    const files = c.files ? dim(` · ${plural(c.files, 'file')}`) : ''
     console.log(`  ${yellow(short(c.id))}  ${dim(ago(c.time).padEnd(14))}  ${c.label}${files}`)
   }
 }
@@ -88,7 +100,7 @@ function watchFiles() {
       console.error(red(`takeback: ${(e as Error).message}`))
     }
   }
-  console.log(`Watching ${root}\nA checkpoint is saved 1.5s after files stop changing. Press Ctrl+C to stop.`)
+  console.log(`Watching ${tilde(root)}\nA checkpoint is saved 1.5s after files stop changing. Press Ctrl+C to stop.`)
   snap()
   let timer: NodeJS.Timeout | undefined
   watch(root, { recursive: true }, (_event, file) => {
@@ -98,22 +110,35 @@ function watchFiles() {
   })
 }
 
+const NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' }
+
 function init(agents: Agent[], scope: 'global' | 'project', remove: boolean) {
-  // Prefer a global install: hooks run on every prompt and npx adds startup time.
-  const which = spawnSync('takeback', ['--version'], { shell: process.platform === 'win32' })
-  const bin = which.status === 0 ? 'takeback' : 'npx -y takeback'
+  const command = remove ? 'takeback' : installApp()
   for (const agent of agents) {
     const file = hookFile(agent, scope)
-    const changed = installHooks(file, `${bin} save --hook ${agent}`, remove)
-    const verb = remove ? 'removed from' : 'installed in'
-    console.log(`${changed ? green('✓') : dim('·')} ${agent}: hooks ${changed ? verb : remove ? 'not found in' : 'already in'} ${file}`)
+    const changed = installHooks(file, `${command} save --hook ${agent}`, remove)
+    const state = remove ? (changed ? 'hooks removed from' : 'no hooks in') : changed ? 'checkpoint hooks added to' : 'already set up in'
+    const trust = agent === 'codex' && changed && !remove ? dim(' (run /hooks in Codex once to trust them)') : ''
+    console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}${trust}`)
   }
   if (remove) return
-  if (agents.includes('codex')) console.log(dim('  Codex asks you to trust new hooks once: run /hooks inside Codex.'))
-  if (bin !== 'takeback') console.log(dim('  Tip: `npm i -g takeback`, then run `takeback init` again for faster hooks.'))
-  console.log(`\nUsing another agent (Cursor, Gemini CLI, OpenCode, Aider…)? Run ${yellow('takeback watch')} next to it.`)
-  console.log(`Something went wrong? Run ${yellow('takeback')} to take back the last turn.`)
+  console.log(`\nDone. When an agent breaks something, run ${yellow('npx takeback')} in the project folder.`)
+  console.log(dim('Other tools (Cursor, Gemini CLI, OpenCode…): keep `npx takeback watch` running next to them.'))
 }
+
+function pruneAll(keep?: string) {
+  const days = keep === undefined ? KEEP_DAYS : Number(keep.replace(/d$/i, ''))
+  if (!Number.isFinite(days) || days < 0) throw new Error('--keep takes a number of days, like --keep 7d')
+  const results = prune(days)
+  for (const r of results.filter((r) => r.gone || r.dropped)) {
+    const what = r.gone ? 'folder is gone, all checkpoints deleted' : `${plural(r.dropped, 'old checkpoint')} dropped`
+    console.log(`  ${tilde(r.project)}  ${dim(what)}  ${size(r.freed)} freed`)
+  }
+  const freed = results.reduce((n, r) => n + Math.max(r.freed, 0), 0)
+  console.log(`${green('✓')} Freed ${size(freed)}. Kept the last ${plural(days, 'day')} of checkpoints and always the newest one.`)
+}
+
+const COMMANDS = ['undo', 'to', 'log', 'ls', 'diff', 'save', 'watch', 'init', 'prune', 'help']
 
 function main() {
   const { values, positionals } = parseArgs({
@@ -121,6 +146,7 @@ function main() {
     options: {
       hook: { type: 'string' },
       n: { type: 'string', short: 'n', default: '20' },
+      keep: { type: 'string' },
       stat: { type: 'boolean' },
       project: { type: 'boolean' },
       remove: { type: 'boolean' },
@@ -128,16 +154,25 @@ function main() {
       version: { type: 'boolean', short: 'v' },
     },
   })
-  const [cmd = 'undo', ...args] = positionals
   if (values.version) return console.log(VERSION)
+  const [cmd, ...args] = positionals
   if (values.help || cmd === 'help') return console.log(HELP)
+  if (!cmd || !COMMANDS.includes(cmd)) {
+    // `takeback [file...]`; a typo like `takeback lgo` lands here too, so say so if it fails.
+    try {
+      return takeBack(undefined, positionals)
+    } catch (e) {
+      const odd = positionals.find((p) => !existsSync(p))
+      throw new Error(odd ? `${(e as Error).message}\n  ("${odd}" is not a command or an existing file; see takeback --help)` : (e as Error).message)
+    }
+  }
 
   switch (cmd) {
     case 'undo':
-      return takeBack()
+      return takeBack(undefined, args)
     case 'to':
       if (!args[0]) throw new Error('Which checkpoint? Pick an id from `takeback log`.')
-      return takeBack(args[0])
+      return takeBack(args[0], args.slice(1))
     case 'log':
     case 'ls':
       return log(Number(values.n) || 20)
@@ -145,22 +180,21 @@ function main() {
       const flags = [...(tty ? ['--color=always'] : []), ...(values.stat ? ['--stat'] : [])]
       return process.stdout.write(diff(process.cwd(), args[0], args[1], flags))
     }
-    case 'save':
+    case 'save': {
       if (values.hook) return hook(values.hook)
-      {
-        const id = save(process.cwd(), args.join(' ') || 'manual save')
-        return console.log(id ? `${green('✓')} Saved ${yellow(short(id))}` : dim('Nothing changed since the last checkpoint.'))
-      }
+      const id = save(process.cwd(), args.join(' ') || 'manual save')
+      return console.log(id ? `${green('✓')} Saved ${yellow(short(id))}` : dim('Nothing changed since the last checkpoint.'))
+    }
     case 'watch':
       return watchFiles()
     case 'init': {
       const agents = args.length ? (args as Agent[]) : AGENTS
       const unknown = agents.find((a) => !AGENTS.includes(a))
-      if (unknown) throw new Error(`Unknown agent "${unknown}". Supported: ${AGENTS.join(', ')}. For any other agent use \`takeback watch\`.`)
+      if (unknown) throw new Error(`Unknown agent "${unknown}". Supported: ${AGENTS.join(', ')}. For any other tool use \`takeback watch\`.`)
       return init(agents, values.project ? 'project' : 'global', !!values.remove)
     }
-    default:
-      throw new Error(`Unknown command "${cmd}". Run \`takeback --help\`.`)
+    case 'prune':
+      return pruneAll(values.keep)
   }
 }
 
