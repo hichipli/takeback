@@ -198,9 +198,25 @@ function installCodexPlugin(): boolean {
   return codex('plugin', 'add', 'takeback@takeback').status === 0
 }
 
-/** Update the Claude Code plugin, for the same reason. False without the claude CLI on PATH. */
-const updateClaudePlugin = () =>
-  claude('plugin', 'marketplace', 'update', 'takeback').status === 0 && claude('plugin', 'update', 'takeback@takeback').status === 0
+/**
+ * Install or update the Claude Code plugin, so Claude also gets the slash commands and the skill that has it read earlier
+ * versions from checkpoints when you ask it to go back. False without the claude CLI on PATH, or if the user turned it off.
+ */
+function installClaudePlugin(): boolean {
+  try {
+    const { enabledPlugins = {} } = JSON.parse(readFileSync(hookFile('claude', 'global'), 'utf8'))
+    if (Object.entries(enabledPlugins).some(([id, on]) => on === false && id.startsWith('takeback@'))) return false
+  } catch {}
+  const marketplaces = claude('plugin', 'marketplace', 'list')
+  if (marketplaces.status !== 0) return false // no claude CLI on PATH (say, the desktop app only)
+  if (/\btakeback\b/.test(marketplaces.stdout)) claude('plugin', 'marketplace', 'update', 'takeback')
+  else if (claude('plugin', 'marketplace', 'add', 'hichipli/takeback').status !== 0) return false
+  return claude('plugin', pluginEnabled('claude') ? 'update' : 'install', 'takeback@takeback').status === 0
+}
+
+// The plugins run takeback's TypeScript source, which Node can do from 22.18 (and 23.6).
+const [major, minor] = process.versions.node.split('.').map(Number)
+const runsTypeScript = major >= 24 || (major === 23 && minor >= 6) || (major === 22 && minor >= 18)
 
 /** Whether the user already approved the Codex plugin's hooks; Codex records that in its config. */
 function codexHooksTrusted() {
@@ -220,22 +236,23 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
     return console.log(`Using another tool that edits your files? Keep ${yellow('npx takeback watch')} running in the project folder.`)
   }
   const command = remove ? 'takeback' : installApp()
+  const withPlugin: string[] = []
   for (const agent of agents) {
     if (!chosen.includes(agent)) {
       console.log(dim(`· ${NAMES[agent]}: not installed, skipped`))
       continue
     }
     const file = hookFile(agent, scope)
-    if (remove && agent === 'codex' && pluginEnabled('codex') && codex('plugin', 'remove', 'takeback@takeback').status === 0) {
-      console.log(`${green('✓')} ${NAMES[agent]}: takeback plugin removed`)
-    }
+    const uninstall = agent === 'codex' ? () => codex('plugin', 'remove', 'takeback@takeback') : () => claude('plugin', 'uninstall', 'takeback@takeback')
+    if (remove && pluginEnabled(agent) && uninstall().status === 0) console.log(`${green('✓')} ${NAMES[agent]}: takeback plugin removed`)
     // With a takeback plugin, init installs or updates it instead of writing hooks into the agent's config.
-    const updated = remove ? false : agent === 'codex' ? scope === 'global' && installCodexPlugin() : pluginEnabled('claude') && updateClaudePlugin()
+    const updated = !remove && scope === 'global' && runsTypeScript && (agent === 'codex' ? installCodexPlugin() : installClaudePlugin())
     if (!remove && (updated || pluginEnabled(agent))) {
       const cleaned = installHooks(file, '', true) ? dim(` (removed the old hooks from ${tilde(file)})`) : ''
       const howTo = agent === 'claude' ? '/plugin update takeback@takeback in Claude Code' : 'codex plugin marketplace upgrade takeback && codex plugin add takeback@takeback'
       const state = updated ? 'takeback plugin, up to date' : `covered by the takeback plugin ${dim(`(to update it: ${howTo})`)}`
       console.log(`${green('✓')} ${NAMES[agent]}: ${state}${cleaned}`)
+      withPlugin.push(NAMES[agent])
       if (agent === 'codex' && !codexHooksTrusted()) {
         console.log(yellow('  ! Codex runs new hooks only after you approve them: /hooks in Codex, or Hooks in the ChatGPT app.'))
         console.log(yellow('    Look for the two hooks listed under takeback.'))
@@ -252,6 +269,7 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
   }
   if (remove) return
   console.log(`\nDone. When an agent breaks something, run ${yellow('npx takeback')} in the project folder.`)
+  if (withPlugin.length) console.log(`Or tell ${withPlugin.join(' or ')}: ${yellow('"go back to before your last change"')}.`)
   console.log(dim('Other tools (Cursor, Gemini CLI, OpenCode…): keep `npx takeback watch` running in the project folder.'))
 }
 

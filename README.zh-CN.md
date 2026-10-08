@@ -17,9 +17,9 @@
 
 <img src="assets/readme/zh-CN/banner.png" width="880" alt="AI 编程智能体的 Ctrl+Z。每一轮都有存档，一条命令就回去：npx takeback。每个检查点约 0.1 秒，零依赖，约 900 行代码，保留 30 天。">
 
-**支持终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。**<br>
-**其他智能体用 `takeback watch`。**<br>
-<sub>从不碰你的 `.git`，从不删除 `.gitignore` 保护的文件，数据不离开你的电脑。</sub>
+**你发给 Claude Code 或 Codex 的每一条消息，都会自动存档。终端、桌面 App、IDE 都支持。**<br>
+**不需要会用 git。哪一轮改坏了，直接让 AI 退回去。**<br>
+<sub>其他智能体用 `takeback watch`。从不碰你的 `.git`，从不删除 `.gitignore` 保护的文件，数据不离开你的电脑。</sub>
 
 <img src="docs/demo.svg" width="860" alt="智能体通过 Bash 删掉了 scripts/，npx takeback 一条命令恢复">
 
@@ -39,6 +39,8 @@ npx takeback init
 npx takeback
 ```
 
+也可以不敲命令，直接对智能体说"回到你上一次修改之前"。`init` 找到 `claude` 和 `codex` 命令时会装好对应的插件，插件会教智能体从检查点恢复。
+
 > [!NOTE]
 > Codex 只运行你批准过的钩子。请在 Codex 里运行一次 `/hooks`（或打开 ChatGPT App 的 Hooks 页面），批准 takeback 下面的两个钩子。
 
@@ -47,8 +49,10 @@ npx takeback
 <img src="assets/readme/zh-CN/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
 
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)），Codex CLI 则[去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。
+- **不需要会用 git。** 检查点存在独立的地方，项目本身也不需要是 git 仓库。让智能体退回去，它会从检查点恢复。
+- **智能体拿到的是真实的历史。** 连着改了很多轮又都没提交时，你让智能体"改回原来那版"，它只能凭记忆重写，细节常常对不上。有了检查点，它能读出原样的文件。[详见下文](#智能体也能用)。
 - **一次设置，所有项目、所有智能体。** `init` 覆盖终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。其他工具用 [`takeback watch`](#在哪里能用)。
-- **不会让情况更糟。** 每次撤销前都先保存当前状态。从不碰你的 `.git`，也从不删除 `.gitignore` 保护的文件，比如 `.env`。
+- **退回去之后也能再回来。** 每次撤销前都先保存当前状态。从不碰你的 `.git`，也从不删除 `.gitignore` 保护的文件，比如 `.env`。
 - **小到可以读完。** [两个文件](#读代码)，约 900 行，零依赖，数据不离开你的电脑。
 
 ## 工作原理
@@ -56,7 +60,7 @@ npx takeback
 <img src="assets/readme/zh-CN/how.png" width="880" alt="发送提示词时和每轮结束时各保存一个检查点。npx takeback 把所有文件恢复到提示词之前的样子。">
 
 - 每个智能体两个钩子：每次提示词之前一个，每轮结束之后一个。插件在 [`hooks/hooks.json`](hooks/hooks.json) 里注册它们；没装 Claude Code 插件时，`init` 把同样两个钩子写进 `~/.claude/settings.json`。每次约 0.1 秒。
-- 检查点是 `~/.takeback/` 下一个独立 git 仓库里的提交。项目自己的 `.git`、分支、暂存区和 stash 都不会被碰，项目本身也不需要是 git 仓库。
+- 检查点是 `~/.takeback/` 下一个独立 git 仓库里的提交。takeback 从不往你自己的仓库里写东西，所以分支、暂存区和 stash 都保持原样，项目本身也不需要是 git 仓库。
 - 遵守你的 `.gitignore`，并始终跳过 `node_modules`、`.venv`、`__pycache__`。
 - 不是 git 仓库、并且超过 5,000 个文件或 500 MB 的文件夹（比如 `~/Downloads`），钩子不会自动开始存检查点。想在这种文件夹里用，运行一次 `takeback save` 即可。
 - 超过 30 天的检查点会自动清理，和 Claude Code 自己的保留期一样。
@@ -117,13 +121,13 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 
 takeback 也是 Claude Code 和 Codex 的插件，两边都会用名字列出它的钩子。两个插件都直接运行 takeback 的 TypeScript 源码，需要 Node 22.18 或更新版本。
 
-**Claude Code。** 在 Claude Code 里安装，同样会自动存检查点，另外多了[斜杠命令](#命令)，而且 Claude 能看到恢复了什么：
+**Claude Code。** 只要电脑上有 `claude` 命令，`npx takeback init` 会自动装好插件。插件同样会自动存检查点，另外多了[斜杠命令](#命令)，还有一个技能，让 Claude 从检查点里读取旧版本。想自己装的话，在 Claude Code 里输入：
 
 ```text
 /plugin install takeback --marketplace hichipli/takeback
 ```
 
-如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
+如果没有 `claude` 命令（比如你只用桌面 App），`init` 会改为把两个钩子写进 `~/.claude/settings.json`。之后再装插件，插件会接手。
 
 <details>
 <summary>Claude Code 低于 2.1.275 时</summary>
@@ -183,7 +187,7 @@ takeback 只恢复文件，不动 git 历史，所以恢复后的文件会显示
 <details>
 <summary><b>会拖慢智能体吗？</b></summary>
 
-项目的第一个检查点会存一份压缩副本，大项目要几秒（一个 850 个文件的应用用了 3.6 秒）。之后每次钩子调用约 0.1 秒。
+第一个检查点要把整个项目复制进存储，大项目要几秒（一个 850 个文件的应用用了 3.6 秒）。之后只存有变化的文件，每次钩子约 0.1 秒。
 
 </details>
 
@@ -211,9 +215,19 @@ git 对每个文件版本只存一份并压缩。旧检查点 30 天后自动清
 <details>
 <summary><b>怎么卸载？</b></summary>
 
-`npx takeback init --remove` 会移除钩子和 Codex 插件。Claude Code 插件用 `/plugin uninstall takeback@takeback` 移除，最后删掉 `~/.takeback`。
+`npx takeback init --remove` 会移除钩子和两个插件，最后删掉 `~/.takeback`。如果电脑上没有 `claude` 命令，在 Claude Code 里用 `/plugin uninstall takeback@takeback` 移除插件。
 
 </details>
+
+## 类似的工具
+
+给编程智能体加上撤销，takeback 不是唯一的办法。看你的习惯，下面这些也许更合适：
+
+- **智能体自带的。** Claude Code 的检查点管它自己文件工具做的修改。Cline、Roo Code 和 Gemini CLI 也会维护一个影子 git 仓库，Aider 会把每次修改提交到你的仓库。
+- **[jj](https://github.com/jj-vcs/jj)。** 每次运行都会给工作区拍快照，如果你用 jj 管版本，`jj undo` 已经能覆盖大部分情况。
+- **其他独立工具**，比如 [snap-back](https://github.com/Abelo9996/snap-back)、[turnback](https://github.com/MFaizR77/turnback) 和 [bashback](https://github.com/trouties/bashback)。它们接入多个智能体，在每次工具调用或 shell 命令前后存快照。
+
+takeback 只在每次发提示词之前和每轮结束之后各存一次，并用你的提示词给检查点命名，因为你想撤销的通常就是"那一轮"。项目不需要是 git 仓库，除了 git 本身没有任何依赖，代码一次就能读完。
 
 ## 读代码
 

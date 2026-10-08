@@ -448,3 +448,24 @@ test('git repos inside the project are named, not reported or touched by a take 
   assert.equal(read(dir, 'a.txt'), 'one')
   assert.equal(read(dir, 'vendor/lib/lib.js'), 'v2', "the inner repo's files are left as they are")
 })
+
+test('init installs the Claude Code plugin when the claude command is there, and --remove uninstalls it', { skip: process.platform === 'win32' }, () => {
+  const bin = mkdtempSync(join(tmpdir(), 'takeback-bin-'))
+  const claudeHome = mkdtempSync(join(tmpdir(), 'takeback-claude-'))
+  const calls = join(bin, 'calls')
+  // A stand-in for the claude CLI: it records its arguments, and `plugin install` enables the plugin the way Claude Code does.
+  writeFileSync(join(bin, 'claude'), `#!/bin/sh
+echo "$*" >> "${calls}"
+case "$*" in "plugin install"*) printf '{"enabledPlugins":{"takeback@takeback":true}}' > "$CLAUDE_CONFIG_DIR/settings.json";; esac
+`)
+  chmodSync(join(bin, 'claude'), 0o755)
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, CLAUDE_CONFIG_DIR: claudeHome, CODEX_HOME: join(tmpdir(), `takeback-none-${process.pid}`) }
+
+  const r = spawnSync(process.execPath, [cli, 'init'], { env, encoding: 'utf8' })
+  assert.match(r.stdout, /Claude Code: takeback plugin, up to date/)
+  assert.match(readFileSync(calls, 'utf8'), /plugin marketplace add hichipli\/takeback\nplugin install takeback@takeback\n/)
+  assert.equal(JSON.parse(readFileSync(join(claudeHome, 'settings.json'), 'utf8')).hooks, undefined, 'the plugin brings the hooks')
+
+  spawnSync(process.execPath, [cli, 'init', '--remove'], { env, encoding: 'utf8' })
+  assert.match(readFileSync(calls, 'utf8'), /plugin uninstall takeback@takeback\n$/)
+})
