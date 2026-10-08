@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (2026-10-08)
+
+- Claude Code plugin: `/plugin marketplace add hichipli/takeback`, then `/plugin install takeback@takeback`. Same automatic checkpoints, plus `/takeback:undo`, `/takeback:to` and `/takeback:log`.
+- `-n` (or `--dry-run`) previews any take back and changes nothing.
+- `takeback diff` without arguments shows what `takeback` would undo.
+- `takeback log [count]` replaces `takeback log -n <count>`.
+- Fixed: if an agent un-ignored a file (for example by emptying `.gitignore`, so `.env` got into a checkpoint), taking back deleted it. Files the target checkpoint ignores are now kept, and ignored files a restore would overwrite are saved first.
+- `init` leaves Claude Code alone when the takeback plugin is enabled.
+- Fixed: `takeback diff` could miss an edit made in the same second as the last checkpoint.
+
 ## 0.2.0 (2026-10-08)
 
 - `takeback <file>` takes back the last turn for just those files; `takeback to <id> <file>` restores them from any checkpoint.

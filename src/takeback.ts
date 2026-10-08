@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +16,7 @@ export interface TakeBack {
   to: Checkpoint
   /** The state right before the take back, so it can be brought back. */
   saved: string
-  /** What the take back did, as git name-status pairs: A came back, D was removed, M was reverted. */
+  /** What the take back did: A came back, D was removed, M was reverted, K was kept because the checkpoint ignores it. */
   changes: [status: string, path: string][]
 }
 
@@ -148,12 +148,83 @@ function trailers(s: Store, id: string) {
   return { restored: /^Restored: ([0-9a-f]{40})$/m.exec(body)?.[1], partial: /^Paths: /m.test(body) }
 }
 
-function commitIfChanged(s: Store, label: string): string | null {
-  s.git(['add', '-A', '--ignore-errors'])
+function commitIndex(s: Store, label: string): string | null {
   const head = rev(s, 'HEAD')
   if (head && s.run(['diff', '--cached', '--quiet', 'HEAD']).status === 0) return null
   s.git(['commit', '-q', '--no-verify', '--allow-empty', '-m', label])
   return rev(s, 'HEAD')
+}
+
+function commitIfChanged(s: Store, label: string): string | null {
+  s.git(['add', '-A', '--ignore-errors'])
+  return commitIndex(s, label)
+}
+
+/** Stage the files on disk into a throwaway index, so previews and diffs see them without saving a checkpoint. */
+function withScratchIndex<T>(s: Store, fn: (env: Record<string, string>) => T): T {
+  const index = join(tmpdir(), `takeback-index-${process.pid}-${Date.now()}`)
+  // Keep the index's mtime: git rechecks files changed in the same second as the index only if it can tell.
+  if (existsSync(join(s.gitDir, 'index'))) cpSync(join(s.gitDir, 'index'), index, { preserveTimestamps: true })
+  try {
+    const env = { GIT_INDEX_FILE: index }
+    s.git(['add', '-A', '--ignore-errors'], env)
+    return fn(env)
+  } finally {
+    rmSync(index, { force: true })
+  }
+}
+
+/**
+ * Where a plain `takeback` goes: the latest checkpoint if there are unsaved changes, otherwise the one before.
+ * Repeating a full take back keeps walking back; taking back single files never moves that position.
+ */
+function pickTarget(s: Store, head: string, unsaved: boolean, target?: string): string {
+  let to: string | null
+  if (target) to = rev(s, target)
+  else if (unsaved) to = head
+  else {
+    let at = head
+    for (let parent; trailers(s, at).partial && (parent = rev(s, `${at}^`)); ) at = parent
+    to = rev(s, `${trailers(s, at).restored ?? at}^`)
+  }
+  if (!to) throw new Error(target ? `Unknown checkpoint: ${target}` : 'Nothing to take back: this is the oldest checkpoint.')
+  return to
+}
+
+/**
+ * Which of `paths` the checkpoint's own .gitignore files ignore. If an agent emptied .gitignore, .env got into
+ * a checkpoint; going back to a checkpoint that ignores .env must leave the file alone, not delete it.
+ */
+function ignoredAt(s: Store, to: string, paths: string[]): Set<string> {
+  if (!paths.length) return new Set()
+  const dir = mkdtempSync(join(tmpdir(), 'takeback-ignore-'))
+  try {
+    for (const f of s.git(['ls-tree', '-r', '-z', '--name-only', to]).split('\0')) {
+      if (!/(^|\/)\.gitignore$/.test(f)) continue
+      mkdirSync(join(dir, dirname(f)), { recursive: true })
+      writeFileSync(join(dir, f), s.git(['show', `${to}:${f}`]))
+    }
+    const r = spawnSync('git', ['--git-dir', s.gitDir, '--work-tree', dir, 'check-ignore', '--no-index', '-z', '--stdin'], {
+      cwd: dir, input: paths.join('\0'), encoding: 'utf8', env: cleanEnv(),
+    })
+    return new Set(r.stdout.split('\0').filter(Boolean))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+const nameStatus = (out: string) => {
+  const f = out.split('\0')
+  const pairs: [string, string][] = []
+  for (let i = 0; i + 1 < f.length; i += 2) if (f[i]) pairs.push([f[i], f[i + 1]])
+  return pairs
+}
+
+/** Changes from the current files to checkpoint `to`, with removals the checkpoint ignores marked K (kept). */
+function plan(s: Store, to: string, scope: string[], env?: Record<string, string>): [string, string][] {
+  const changes = nameStatus(s.git(['diff', '--cached', '-R', '--name-status', '--no-renames', '-z', to, ...scope], env))
+  const kept = ignoredAt(s, to, changes.filter(([st]) => st === 'D').map(([, f]) => f))
+  return changes.map(([st, f]) => [kept.has(f) ? 'K' : st, f])
 }
 
 /**
@@ -199,40 +270,46 @@ export function list(dir: string, limit = 20): Checkpoint[] {
 }
 
 /**
- * Restore the project, or just `paths`, to a checkpoint. Without a target, take back the most recent
- * change: unsaved edits if there are any, otherwise the last checkpoint. Repeating a full take back
- * keeps walking back; taking back single files never moves that position.
- * The current state is always saved first, so a take back can itself be taken back.
+ * Restore the project, or just `paths`, to a checkpoint (by default where a plain `takeback` goes, see pickTarget).
+ * The current state is always saved first, so a take back can itself be taken back, and files the checkpoint
+ * ignores are never deleted. With `dryRun`, nothing changes: the result says what would happen.
  */
-export function undo(dir: string, target?: string, paths: string[] = []): TakeBack {
+export function undo(dir: string, target?: string, paths: string[] = [], dryRun = false): TakeBack {
   return withStore(dir, (s) => {
     const head = rev(s, 'HEAD')
     if (!head) throw new Error('No checkpoints yet. Run `takeback init` (Claude Code, Codex) or `takeback watch` first.')
     const base = realpathSync(dir)
-    const specs = paths.map((p) => {
+    const rels = paths.map((p) => {
       const rel = relative(s.root, resolve(base, p))
       if (rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${p} is outside ${s.root}`)
-      return rel ? `:(literal)${rel.split(sep).join('/')}` : '.'
+      return rel.split(sep).join('/')
     })
-    const saved = commitIfChanged(s, 'saved before takeback')
+    const scope = ['--', ...(rels.length ? rels.map((r) => (r ? `:(literal)${r}` : '.')) : ['.'])]
 
-    let to: string | null
-    if (target) to = rev(s, target)
-    else if (saved) to = head
-    else {
-      let at = head
-      for (let parent; trailers(s, at).partial && (parent = rev(s, `${at}^`)); ) at = parent
-      to = rev(s, `${trailers(s, at).restored ?? at}^`)
+    if (dryRun) {
+      return withScratchIndex(s, (env) => {
+        const to = pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0, target)
+        return { to: info(s, to), saved: head, changes: plan(s, to, scope, env) }
+      })
     }
-    if (!to) throw new Error(target ? `Unknown checkpoint: ${target}` : 'Nothing to take back: this is the oldest checkpoint.')
 
-    const r = s.run(['restore', `--source=${to}`, '--staged', '--worktree', '--', ...(specs.length ? specs : ['.'])])
+    s.git(['add', '-A', '--ignore-errors'])
+    const to = pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD']).status !== 0, target)
+    // Files the restore will overwrite that the index doesn't hold, because they're ignored right now,
+    // go into the safety checkpoint too. Nothing on disk is lost.
+    const tracked = new Set(s.git(['ls-files', '-z']).split('\0'))
+    const atRisk = s.git(['ls-tree', '-r', '-z', '--name-only', to, '--', ...rels.filter(Boolean)]).split('\0')
+      .filter((f) => f && !tracked.has(f) && existsSync(join(s.root, f)))
+    if (atRisk.length) s.git(['add', '-f', '--', ...atRisk.map((f) => `:(literal)${f}`)])
+    const before = commitIndex(s, 'saved before takeback') ?? head
+
+    const changes = plan(s, to, scope)
+    const r = s.run(['restore', `--source=${to}`, '--staged', '--worktree', ...scope])
     if (r.status !== 0) {
       throw new Error(/did not match/.test(r.stderr) ? `${paths.join(', ')} never appears in checkpoint ${to.slice(0, 7)}.` : r.stderr.trim())
     }
-    const before = saved ?? head
-    const changes = s.git(['diff', '--cached', '--name-status', '--no-renames', before])
-      .trim().split('\n').filter(Boolean).map((l) => l.split('\t') as [string, string])
+    const kept = changes.filter(([st]) => st === 'K').map(([, f]) => `:(literal)${f}`)
+    if (kept.length) s.git(['restore', `--source=${before}`, '--worktree', '--', ...kept])
     if (changes.length || !paths.length) {
       const what = paths.length ? `${paths.join(', ')} ` : ''
       const body = [`Restored: ${to}`, ...(paths.length ? [`Paths: ${paths.join(' ')}`] : [])].join('\n')
@@ -242,26 +319,24 @@ export function undo(dir: string, target?: string, paths: string[] = []): TakeBa
   })
 }
 
-/** Patch from checkpoint `from` (default: latest) to checkpoint `to` (default: the files on disk now). */
-export function diff(dir: string, from = 'HEAD', to?: string, flags: string[] = []): string {
+/**
+ * Patch from checkpoint `from` to checkpoint `to`, or to the files on disk now. Without `from`, it shows
+ * what a plain `takeback` would undo: usually the agent's last turn.
+ */
+export function diff(dir: string, from?: string, to?: string, flags: string[] = []): string {
   return withStore(dir, (s) => {
-    const a = rev(s, from)
-    if (!a) throw new Error(`Unknown checkpoint: ${from}`)
-    if (to) {
-      const b = rev(s, to)
-      if (!b) throw new Error(`Unknown checkpoint: ${to}`)
-      return s.git(['diff', ...flags, a, b])
+    const head = rev(s, 'HEAD')
+    if (!head) throw new Error('No checkpoints yet. Run `takeback init` (Claude Code, Codex) or `takeback watch` first.')
+    const resolved = (ref: string) => {
+      const id = rev(s, ref)
+      if (!id) throw new Error(`Unknown checkpoint: ${ref}`)
+      return id
     }
-    // Stage the working tree into a throwaway index so untracked files show up too.
-    const index = join(tmpdir(), `takeback-index-${process.pid}-${Date.now()}`)
-    if (existsSync(join(s.gitDir, 'index'))) copyFileSync(join(s.gitDir, 'index'), index)
-    try {
-      const env = { GIT_INDEX_FILE: index }
-      s.git(['add', '-A', '--ignore-errors'], env)
+    if (from && to) return s.git(['diff', ...flags, resolved(from), resolved(to)])
+    return withScratchIndex(s, (env) => {
+      const a = from ? resolved(from) : pickTarget(s, head, s.run(['diff', '--cached', '--quiet', 'HEAD'], env).status !== 0)
       return s.git(['diff', '--cached', ...flags, a], env)
-    } finally {
-      rmSync(index, { force: true })
-    }
+    })
   })
 }
 
