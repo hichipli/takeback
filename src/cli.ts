@@ -4,7 +4,7 @@ import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, show, tooBigToStart, undo, type Agent } from './takeback.ts'
+import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, rememberPrompt, save, show, takePrompt, tooBigToStart, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
@@ -59,7 +59,7 @@ function hook(flag: string) {
   // The plugin's hook file serves Claude Code and Codex; only Codex sets PLUGIN_ROOT.
   const agent = flag === 'auto' ? (process.env.PLUGIN_ROOT ? 'codex' : 'claude') : flag
   try {
-    let payload: { cwd?: string; hook_event_name?: string; prompt?: string } = {}
+    let payload: { cwd?: string; hook_event_name?: string; prompt?: string; session_id?: string } = {}
     try {
       payload = JSON.parse(readFileSync(0, 'utf8') || '{}')
     } catch {}
@@ -71,11 +71,17 @@ function hook(flag: string) {
     // Both agents set CLAUDE_PLUGIN_ROOT for plugin hooks.
     if (!process.env.CLAUDE_PLUGIN_ROOT && (agent === 'claude' || agent === 'codex') && pluginEnabled(agent)) return
     if (tooBigToStart(dir)) return
-    const label =
-      event === 'UserPromptSubmit' ? `${agent} · before "${oneLine(payload.prompt ?? '')}"`
-      : event === 'Stop' ? `${agent} · after turn`
-      : `${agent} · ${event ?? 'hook'}`
-    save(dir, label)
+    const session = payload.session_id
+    const prompt = oneLine(payload.prompt ?? '')
+    if (event === 'UserPromptSubmit') {
+      save(dir, `${agent} · before "${prompt}"`)
+      if (session) rememberPrompt(dir, session, prompt)
+    } else if (event === 'Stop') {
+      const asked = session && takePrompt(dir, session)
+      save(dir, asked ? `${agent} · after "${asked}"` : `${agent} · after turn`)
+    } else {
+      save(dir, `${agent} · ${event ?? 'hook'}`)
+    }
   } catch (e) {
     process.stderr.write(`takeback: ${(e as Error).message}\n`)
   }

@@ -340,6 +340,28 @@ function cut(s: Store, days: number): number {
   return lines.length - 1 - keep
 }
 
+// The prompt of a session's current turn. Its "before" checkpoint is usually skipped because nothing changed
+// since the last turn, so the checkpoint after the turn carries the prompt instead.
+const turnFile = (dir: string, session: string) => join(open(dir).gitDir, 'turns', session.replace(/[^\w.-]/g, '_'))
+
+export function rememberPrompt(dir: string, session: string, prompt: string) {
+  const file = turnFile(dir, session)
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, prompt)
+}
+
+/** The prompt remembered for a session's turn, if any. It is forgotten once read. */
+export function takePrompt(dir: string, session: string): string | undefined {
+  const file = turnFile(dir, session)
+  try {
+    return readFileSync(file, 'utf8')
+  } catch {
+    return undefined
+  } finally {
+    rmSync(file, { force: true })
+  }
+}
+
 /** Save a checkpoint of the project containing `dir`. Returns its id, or null if nothing changed. */
 export function save(dir: string, label = 'manual save'): string | null {
   return withStore(dir, (s) => {
