@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 (2026-10-08)
+
+- `init` says plainly that Codex skips new hooks until you approve them with `/hooks`, and `takeback` explains the usual reasons a folder has no checkpoints.
+- With the takeback plugin enabled, the hooks from `init` stand down, and re-running `init` removes them, so checkpoints aren't saved twice.
+- Hooks don't start checkpointing a folder that isn't a git repo and holds more than 5,000 files or 500 MB. `takeback save` starts one by hand.
+- `takeback log`, `diff` and `-n` no longer create an empty store in folders without checkpoints.
+- A git lock left behind by a killed hook no longer blocks later checkpoints.
+
 ## 0.3.0 (2026-10-08)
 
 - Claude Code plugin: `/plugin marketplace add hichipli/takeback`, then `/plugin install takeback@takeback`. Same automatic checkpoints, plus `/takeback:undo`, `/takeback:to` and `/takeback:log`.
