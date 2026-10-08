@@ -14,20 +14,22 @@
 
 ## 快速开始
 
+只需设置一次：
+
 ```bash
 npx takeback init
 ```
 
-这样就设置好了。之后 Claude Code 和 Codex 会在每次发送提示词之前、每轮结束之后各保存一个检查点。智能体把东西改坏了，就运行：
+之后在所有项目里，Claude Code 和 Codex 都会在每次发送提示词之前、每轮结束之后各保存一个检查点。不用再装别的，也不用常驻运行什么。
+
+智能体把东西改坏了，就在项目文件夹里运行：
 
 ```bash
 npx takeback
 ```
 
-用的是 Cursor、Gemini CLI、OpenCode、Aider 或其他工具？在旁边的终端里运行 `npx takeback watch` 即可。
-
 > [!TIP]
-> `npm i -g takeback` 全局安装后钩子启动比 `npx` 更快，装好后再运行一次 `takeback init`。
+> 在 Claude Code 里甚至不用离开对话：输入 `!npx takeback`，Claude 也能看到恢复了哪些文件。
 
 ## 为什么需要它
 
@@ -39,35 +41,39 @@ npx takeback
 
 git 只有在你按下回车前刚好提交过时才有用。takeback 在每一轮都给**整个项目文件夹**拍快照，不管是哪个工具改的文件。
 
+## 怎么用
+
+| 你想 | 运行 |
+| --- | --- |
+| 撤销智能体的上一轮 | `takeback` |
+| 再往前退一轮 | 再运行一次 `takeback` |
+| 只撤销上一轮对某个文件的改动 | `takeback src/app.ts` |
+| 查看所有检查点 | `takeback log` |
+| 跳到任意检查点，或者重做 | `takeback to 3f9c2a1` |
+| 从任意检查点恢复单个文件 | `takeback to 3f9c2a1 src/app.ts` |
+| 查看某个检查点之后改了什么 | `takeback diff [id]`（加 `--stat` 看摘要） |
+| 手动保存一个检查点 | `takeback save "大重构之前"` |
+
+每次撤销都会先保存当前状态，并告诉你怎么回去，所以退过头也不会丢东西。
+
+## 在哪里能用
+
+takeback 保护的是编程智能体在你电脑上改动的文件。
+
+| 你在哪里用智能体 | 设置 |
+| --- | --- |
+| Claude Code：终端、桌面 App、VS Code / JetBrains 插件 | `npx takeback init`（它们共用 `~/.claude/settings.json`） |
+| Codex CLI | `npx takeback init`，然后在 Codex 里用 `/hooks` 信任一次 |
+| Cursor、Windsurf、Gemini CLI、OpenCode、Aider、Cline、Codex App、你自己的脚本：任何会改文件夹里文件的工具 | 在那个文件夹里保持运行 `npx takeback watch`，文件停止变化 1.5 秒后自动存检查点 |
+| ChatGPT、Claude.ai 等聊天应用 | 不需要。它们不会改你硬盘上的文件 |
+
 ## 工作原理
 
-- `takeback init` 给 Claude Code 和 Codex 加两个钩子：**每次提示词之前**和**每轮结束之后**各存一个检查点。
+- `init` 给 Claude Code 和 Codex 加两个钩子：每次提示词之前一个，每轮结束之后一个。同时把 takeback 本身（约 20 KB，零依赖）复制到 `~/.takeback/app`，所以钩子每次只要约 0.1 秒，也不依赖 npm。
 - 检查点存放在 `~/.takeback/` 下一个独立的 git 仓库里。项目自己的 `.git`、分支、暂存区和 stash 都不会被碰，项目本身也不需要是 git 仓库。
-- 遵守你的 `.gitignore`，并始终跳过 `node_modules`、`.venv`、`__pycache__`，被忽略的构建产物和密钥文件不会进入快照。
-- `takeback` 恢复之前会先保存当前状态，所以每一次撤销本身也能撤销。
-- 所有数据都留在本机：没有后台进程，没有账号，没有遥测，零运行时依赖。
-
-## 命令
-
-| 命令 | 作用 |
-| --- | --- |
-| `takeback` | 撤销上一轮；再运行一次继续往回退 |
-| `takeback log` | 列出检查点，最新的在前 |
-| `takeback to <id>` | 恢复到任意检查点（重做也用它） |
-| `takeback diff [from] [to]` | 查看某个检查点之后的改动（加 `--stat` 看摘要） |
-| `takeback save [message]` | 手动保存一个检查点 |
-| `takeback watch` | 文件停止变化后自动保存检查点，适用于任何工具 |
-| `takeback init [claude\|codex]` | 全局安装钩子；`--project` 只装在当前项目，`--remove` 卸载 |
-
-## 支持的智能体
-
-| 智能体 | 设置 | 何时保存检查点 |
-| --- | --- | --- |
-| Claude Code | `takeback init claude` | 每次提示词之前、每轮结束之后 |
-| Codex CLI | `takeback init codex`，然后在 Codex 里用 `/hooks` 信任一次 | 每次提示词之前、每轮结束之后 |
-| Cursor、Gemini CLI、OpenCode、Aider、Cline、DeepSeek Harness、你自己的脚本 | `takeback watch` | 文件停止变化 1.5 秒后 |
-
-欢迎为更多智能体贡献原生钩子，见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 遵守你的 `.gitignore`，并始终跳过 `node_modules`、`.venv`、`__pycache__`。
+- 超过 30 天的检查点会自动清理，和 Claude Code 自己的保留期一样。
+- 所有数据都留在本机：没有后台进程，没有账号，没有遥测。
 
 ## 常见问题
 
@@ -77,9 +83,11 @@ git 只有在你按下回车前刚好提交过时才有用。takeback 在每一�
 
 **会拖慢智能体吗？** 项目的第一个检查点会存一份压缩副本，大项目要几秒（一个 850 个文件的应用用了 3.6 秒）。之后每次钩子调用约 0.1 秒。
 
-**数据存在哪里？** `~/.takeback/<项目名>-<hash>/`，每个项目一个，随时可以删除。检查点标签包含提示词的前 60 个字符。没有任何数据离开你的电脑。
+**占多少磁盘？** git 对每个文件版本只存一份并压缩。旧检查点 30 天后自动清理。想马上释放空间就运行 `takeback prune`，`takeback prune --keep 7d` 只保留最近一周。prune 也会删除已经不存在的文件夹的检查点。
 
-**怎么卸载？** 先运行 `takeback init --remove`，再 `rm -rf ~/.takeback`。
+**怎么更新？** `npx takeback@latest init`。
+
+**怎么卸载？** 先运行 `npx takeback init --remove`，再 `rm -rf ~/.takeback`。
 
 ## 许可证
 
