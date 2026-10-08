@@ -1,7 +1,7 @@
 {
   "name": "takeback",
-  "version": "0.2.0",
-  "description": "Ctrl+Z for AI coding agents. Undo any turn of Claude Code, Codex, Cursor & co, including files changed through Bash.",
+  "version": "0.3.0",
+  "description": "Ctrl+Z for AI coding agents. One command undoes the last turn of Claude Code, Codex or any agent, including files changed through Bash.",
   "keywords": [
     "claude-code",
     "codex",
@@ -14,7 +14,9 @@
     "cursor",
     "gemini-cli",
     "opencode",
-    "cli"
+    "cli",
+    "claude-code-plugin",
+    "safety"
   ],
   "homepage": "https://github.com/hichipli/takeback#readme",
   "bugs": "https://github.com/hichipli/takeback/issues",
