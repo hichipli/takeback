@@ -33,7 +33,7 @@ npx takeback
 
 That's it. Add `-n` to see what it would do first.
 
-Using Codex? It skips new hooks until you approve them, so open Codex once and run `/hooks`.
+Using Codex? `init` installs the takeback plugin for it. Codex runs new hooks only after you approve them, so run `/hooks` in Codex (or open Hooks in the ChatGPT app) once and trust the two listed under takeback.
 
 ## Why takeback
 
@@ -72,9 +72,11 @@ $ takeback log
   966e3c5  3 minutes ago   claude · before "clean up the build scripts" · 3 files
 ```
 
-### Claude Code plugin
+### Plugins
 
-Prefer slash commands? Inside Claude Code:
+takeback is also a plugin for Claude Code and for Codex, so each agent lists its hooks by name.
+
+**Claude Code.** Prefer slash commands? Inside Claude Code:
 
 ```text
 /plugin install takeback --marketplace hichipli/takeback
@@ -82,7 +84,21 @@ Prefer slash commands? Inside Claude Code:
 
 On Claude Code older than 2.1.275, run `/plugin marketplace add hichipli/takeback` first, then `/plugin install takeback@takeback`.
 
-You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to` and `/takeback:log`, and Claude sees what was taken back. Needs Node 22.18 or newer. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
+You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to` and `/takeback:log`, and Claude sees what was taken back. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
+
+**Codex.** `npx takeback init` installs the plugin for you when the `codex` command is available. To install it yourself:
+
+```bash
+codex plugin marketplace add hichipli/takeback
+```
+
+```bash
+codex plugin add takeback@takeback
+```
+
+Then approve its two hooks once, in `/hooks` or the ChatGPT app's Hooks page, where they're listed under takeback.
+
+Both plugins run takeback's TypeScript source directly, so they need Node 22.18 or newer.
 
 ## Where it works
 
@@ -90,15 +106,15 @@ takeback protects the files on your computer that coding agents change.
 
 | Where you run the agent | Setup |
 | --- | --- |
-| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`, or the [plugin](#claude-code-plugin) |
-| Codex in the terminal or the ChatGPT desktop app | `npx takeback init`, then approve the new hooks once with `/hooks`. Until then Codex skips them. |
+| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`, or the [plugin](#plugins) |
+| Codex in the terminal or the ChatGPT desktop app | `npx takeback init` installs the takeback plugin. Approve its two hooks once with `/hooks`; until then Codex skips them. |
 | Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
 | Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
 | Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
 
 ## How it works
 
-- `init` adds two hooks to Claude Code and Codex: one before every prompt, one after every turn. It copies takeback to `~/.takeback/app`, so each hook takes about 0.1 s and doesn't depend on npm.
+- `init` sets up two hooks per agent: one before every prompt, one after every turn. For Codex it installs the takeback plugin, so Codex names them when it asks you to approve them. For Claude Code it adds them to `~/.claude/settings.json`, running a copy of takeback in `~/.takeback/app`. Either way a hook takes about 0.1 s.
 - Checkpoints go to a separate git repository in `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo at all.
 - It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`.
 - Hooks don't start on a folder that isn't a git repo and holds more than 5,000 files or 500 MB, such as `~/Downloads`. Run `takeback save` there to start anyway.
@@ -119,7 +135,7 @@ takeback protects the files on your computer that coding agents change.
 
 **How do I update?** `npx takeback@latest init`. With the plugin: `claude plugin update takeback@takeback`.
 
-**How do I uninstall?** `npx takeback init --remove` (or `/plugin uninstall takeback@takeback`), then `rm -rf ~/.takeback`.
+**How do I uninstall?** `npx takeback init --remove` removes the hooks and the Codex plugin. Remove the Claude Code plugin with `/plugin uninstall takeback@takeback`, then delete `~/.takeback`.
 
 ## Roadmap
 
