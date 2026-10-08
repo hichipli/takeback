@@ -1,5 +1,5 @@
 ---
-description: Restore this project, or only some files, to a takeback checkpoint. Get ids from /takeback:log. Add -n to preview.
+description: Restore this project, or only some files, to a takeback checkpoint. Get ids from /takeback:takeback-log. Add -n to preview.
 argument-hint: "<checkpoint> [-n] [file...]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*)

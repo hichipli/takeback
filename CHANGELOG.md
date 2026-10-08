@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 (2026-10-08)
+
+- Every plugin command and skill is named after takeback, so they stand out in the Claude Code and Codex skill lists. The Claude Code commands are now `/takeback:takeback` (was `/takeback:undo`), `/takeback:takeback-to`, `/takeback:takeback-log` and `/takeback:takeback-diff`, matching `takeback`, `takeback to`, `takeback log` and `takeback diff` in the terminal. The skill for reading checkpoints is `takeback-checkpoints` in both agents.
+- Plugin listings name the author Chip Li and show the plugin as takeback, in lowercase.
+
 ## 0.4.4 (2026-10-08)
 
 - A redesigned README, with pictures of what takeback restores, how it works and how agents use it. This release brings it to the npm page.

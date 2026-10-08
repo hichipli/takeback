@@ -1,5 +1,5 @@
 ---
-description: Show what /takeback:undo would undo, as a patch. Give a checkpoint id to see the changes since it.
+description: Show what /takeback:takeback would undo, as a patch. Give a checkpoint id to see the changes since it.
 argument-hint: "[checkpoint] [checkpoint]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*)

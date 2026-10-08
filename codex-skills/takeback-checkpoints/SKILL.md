@@ -1,5 +1,5 @@
 ---
-name: checkpoints
+name: takeback-checkpoints
 description: Use when the user wants an earlier version back, asks to undo something from an earlier turn, or asks what a file looked like before. takeback saved a checkpoint of this project before every prompt and after every turn, so earlier versions can be read exactly instead of rebuilt from memory.
 ---
 

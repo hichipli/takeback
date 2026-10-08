@@ -330,8 +330,8 @@ test('with --slash, hints name the Claude Code plugin commands', () => {
   save(dir, 'after')
   const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, encoding: 'utf8' }).stdout
   assert.match(run('-n'), /Run `takeback` to do it, or `takeback diff`/, 'the terminal keeps terminal commands')
-  assert.match(run('--slash', '-n'), /Run `\/takeback:undo` to do it, or `\/takeback:diff` for the full patch/)
-  assert.match(run('--slash'), /Changed your mind\? \/takeback:to [0-9a-f]{7}/)
+  assert.match(run('--slash', '-n'), /Run `\/takeback:takeback` to do it, or `\/takeback:takeback-diff` for the full patch/)
+  assert.match(run('--slash'), /Changed your mind\? \/takeback:takeback-to [0-9a-f]{7}/)
 })
 
 test('a take back says when the project moved to another commit or branch since the checkpoint', () => {

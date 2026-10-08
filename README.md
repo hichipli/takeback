@@ -68,14 +68,14 @@ Shown without `npx`; add it if you haven't installed takeback globally. The plug
 
 | You want to | Terminal | Claude Code plugin |
 | --- | --- | --- |
-| Undo the agent's last turn | `takeback` | [`/takeback:undo`](claude-skills/undo/SKILL.md) |
-| See what that would change first | `takeback -n` | `/takeback:undo -n` |
-| Go back one more turn | `takeback` again | `/takeback:undo` again |
-| Undo the last turn for one file only | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
-| See every checkpoint | `takeback log` | [`/takeback:log`](claude-skills/log/SKILL.md) |
-| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | [`/takeback:to 3f9c2a1`](claude-skills/to/SKILL.md) |
-| See the last turn as a patch | `takeback diff` | [`/takeback:diff`](claude-skills/diff/SKILL.md) |
-| See a file as it was at a checkpoint | `takeback show 3f9c2a1 src/app.ts` | [Ask Claude](claude-skills/checkpoints/SKILL.md) |
+| Undo the agent's last turn | `takeback` | [`/takeback:takeback`](claude-skills/takeback/SKILL.md) |
+| See what that would change first | `takeback -n` | `/takeback:takeback -n` |
+| Go back one more turn | `takeback` again | `/takeback:takeback` again |
+| Undo the last turn for one file only | `takeback src/app.ts` | `/takeback:takeback src/app.ts` |
+| See every checkpoint | `takeback log` | [`/takeback:takeback-log`](claude-skills/takeback-log/SKILL.md) |
+| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | [`/takeback:takeback-to 3f9c2a1`](claude-skills/takeback-to/SKILL.md) |
+| See the last turn as a patch | `takeback diff` | [`/takeback:takeback-diff`](claude-skills/takeback-diff/SKILL.md) |
+| See a file as it was at a checkpoint | `takeback show 3f9c2a1 src/app.ts` | [Ask Claude](claude-skills/takeback-checkpoints/SKILL.md) |
 | Save a checkpoint by hand | `takeback save "before the refactor"` | |
 
 Every take back prints how to undo it, so going back too far never loses work.
@@ -99,7 +99,7 @@ takeback show 3f9c2a1 src/app.ts    # a file exactly as it was
 takeback diff 3f9c2a1               # everything that changed since
 ```
 
-With the plugins, the agent looks there on its own and restores only when you ask: see the skill for [Claude Code](claude-skills/checkpoints/SKILL.md) and for [Codex](codex-skills/checkpoints/SKILL.md). Reading needs no write access, so it works inside Codex's sandbox too. Any other agent can run the same commands when you tell it to.
+With the plugins, the agent looks there on its own and restores only when you ask: see the skill for [Claude Code](claude-skills/takeback-checkpoints/SKILL.md) and for [Codex](codex-skills/takeback-checkpoints/SKILL.md). Reading needs no write access, so it works inside Codex's sandbox too. Any other agent can run the same commands when you tell it to.
 
 ## Where it works
 
