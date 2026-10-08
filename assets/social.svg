@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.33" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#3fb950" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#3fb950" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <g transform="translate(286 232) scale(0.34375)">
+    <rect width="512" height="512" rx="114" fill="#0d1117"/>
+    <rect x="2" y="2" width="508" height="508" rx="112" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="4"/>
+    <g fill="none" stroke="#3fb950" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" transform="translate(-8 4)">
+      <path d="M226 162 L170 218 L226 274"/>
+      <path d="M170 218 H302 a62 62 0 0 1 0 124 H238"/>
+    </g>
+  </g>
+  <text x="512" y="296" font-family="Avenir Next" font-weight="600" font-size="104" letter-spacing="-2" fill="#e6edf3">takeback</text>
+  <text x="516" y="356" font-family="Avenir Next" font-size="38" fill="#8b949e">Ctrl+Z for AI coding agents.</text>
+  <text x="516" y="424" font-family="Menlo" font-size="28" fill="#3fb950"><tspan fill="#6e7681">$</tspan><tspan dx="17">npx takeback</tspan></text>
+</svg>

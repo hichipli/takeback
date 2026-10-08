@@ -1,10 +1,29 @@
 {
+  "description": "takeback: save a checkpoint of the project before every prompt and after every turn",
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/cli.ts\" save --hook claude", "timeout": 30 }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"import(require('node:url').pathToFileURL(require('node:path').join(process.env.CLAUDE_PLUGIN_ROOT,'src','cli.ts')).href)\" save --hook auto",
+            "timeout": 30,
+            "statusMessage": "Saving a takeback checkpoint"
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/cli.ts\" save --hook claude", "timeout": 30 }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"import(require('node:url').pathToFileURL(require('node:path').join(process.env.CLAUDE_PLUGIN_ROOT,'src','cli.ts')).href)\" save --hook auto",
+            "timeout": 30,
+            "statusMessage": "Saving a takeback checkpoint"
+          }
+        ]
+      }
     ]
   }
 }

@@ -28,7 +28,8 @@ interface Store {
 }
 
 // Never snapshot these, even in projects without a .gitignore.
-const DEFAULT_EXCLUDES = ['node_modules/', '.venv/', 'venv/', '__pycache__/', '.DS_Store'].join('\n') + '\n'
+const SKIP_DIRS = ['node_modules', '.venv', 'venv', '__pycache__']
+const DEFAULT_EXCLUDES = [...SKIP_DIRS.map((d) => `${d}/`), '.DS_Store'].join('\n') + '\n'
 // ponytail: fixed retention, the same as Claude Code's own checkpoints; make it configurable if anyone asks
 export const KEEP_DAYS = 30
 const DAY = 86_400_000
@@ -118,18 +119,56 @@ function lock<T>(gitDir: string, fn: () => T): T {
     }
   }
   try {
+    // Holding our lock means no other takeback uses this store, so a git index.lock left here comes from a
+    // killed process (an agent's hook timeout, say) and would otherwise block every later checkpoint.
+    rmSync(join(gitDir, 'index.lock'), { force: true })
     return fn()
   } finally {
     rmSync(path, { recursive: true, force: true })
   }
 }
 
-function withStore<T>(dir: string, fn: (s: Store) => T): T {
+const hasStore = (s: Store) => existsSync(join(s.gitDir, 'HEAD'))
+
+/** Only `save` creates a store; reading commands in a folder without checkpoints leave nothing behind. */
+function withStore<T>(dir: string, fn: (s: Store) => T, create = false): T {
   const s = open(dir)
+  if (!create && !hasStore(s)) throw new Error(`No checkpoints for ${s.root} yet.`)
   return lock(s.gitDir, () => {
     init(s)
     return fn(s)
   })
+}
+
+/** Agents also run in folders like ~/Downloads. Hooks don't start checkpointing a big folder that isn't a git repo. */
+export const AUTO_LIMIT = { files: 5000, bytes: 500e6 }
+
+export function tooBigToStart(dir: string, limit = AUTO_LIMIT): boolean {
+  const s = open(dir)
+  if (hasStore(s) || spawnSync('git', ['rev-parse', '--git-dir'], { cwd: s.root, env: cleanEnv() }).status === 0) return false
+  let files = 0
+  let bytes = 0
+  for (const stack = [s.root]; stack.length; ) {
+    const d = stack.pop()!
+    let entries
+    try {
+      entries = readdirSync(d, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        if (!SKIP_DIRS.includes(e.name) && e.name !== '.git') stack.push(join(d, e.name))
+      } else if (e.isFile()) {
+        if (++files > limit.files) return true
+        try {
+          bytes += statSync(join(d, e.name)).size
+        } catch {}
+        if (bytes > limit.bytes) return true
+      }
+    }
+  }
+  return false
 }
 
 const rev = (s: Store, ref: string) => {
@@ -254,11 +293,12 @@ export function save(dir: string, label = 'manual save'): string | null {
       writeFileSync(stamp, '')
     }
     return id
-  })
+  }, true)
 }
 
 /** Newest first. */
 export function list(dir: string, limit = 20): Checkpoint[] {
+  if (!hasStore(open(dir))) return []
   return withStore(dir, (s) => {
     if (!rev(s, 'HEAD')) return []
     const out = s.git(['log', `-n${limit}`, '--shortstat', '--format=%x1e%H%x1f%ct%x1f%s%x1f'])
@@ -277,7 +317,7 @@ export function list(dir: string, limit = 20): Checkpoint[] {
 export function undo(dir: string, target?: string, paths: string[] = [], dryRun = false): TakeBack {
   return withStore(dir, (s) => {
     const head = rev(s, 'HEAD')
-    if (!head) throw new Error('No checkpoints yet. Run `takeback init` (Claude Code, Codex) or `takeback watch` first.')
+    if (!head) throw new Error(`No checkpoints for ${s.root} yet.`)
     const base = realpathSync(dir)
     const rels = paths.map((p) => {
       const rel = relative(s.root, resolve(base, p))
@@ -326,7 +366,7 @@ export function undo(dir: string, target?: string, paths: string[] = [], dryRun 
 export function diff(dir: string, from?: string, to?: string, flags: string[] = []): string {
   return withStore(dir, (s) => {
     const head = rev(s, 'HEAD')
-    if (!head) throw new Error('No checkpoints yet. Run `takeback init` (Claude Code, Codex) or `takeback watch` first.')
+    if (!head) throw new Error(`No checkpoints for ${s.root} yet.`)
     const resolved = (ref: string) => {
       const id = rev(s, ref)
       if (!id) throw new Error(`Unknown checkpoint: ${ref}`)
@@ -399,7 +439,7 @@ export function installApp(): string {
   return `node "${cli}"`
 }
 
-interface HookGroup { matcher?: string; hooks?: { type?: string; command?: string; timeout?: number }[] }
+interface HookGroup { matcher?: string; hooks?: { type?: string; command?: string; timeout?: number; statusMessage?: string }[] }
 const isOurs = (g: HookGroup) => g.hooks?.some((h) => /\bsave --hook (claude|codex)\b/.test(h.command ?? ''))
 
 /**
@@ -417,7 +457,7 @@ export function installHooks(file: string, command: string, remove = false): boo
   const hooks = (cfg.hooks ??= {})
   for (const event of ['UserPromptSubmit', 'Stop']) {
     const groups = (hooks[event] ?? []).filter((g) => !isOurs(g))
-    if (!remove) groups.push({ hooks: [{ type: 'command', command, timeout: 30 }] })
+    if (!remove) groups.push({ hooks: [{ type: 'command', command, timeout: 30, statusMessage: 'Saving a takeback checkpoint' }] })
     if (groups.length) hooks[event] = groups
     else delete hooks[event]
   }

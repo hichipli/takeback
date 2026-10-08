@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { AGENTS, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, undo, type Agent } from './takeback.ts'
+import { AGENTS, AUTO_LIMIT, KEEP_DAYS, diff, hookFile, installApp, installHooks, list, projectRoot, prune, save, tooBigToStart, undo, type Agent } from './takeback.ts'
 
 const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
@@ -53,20 +54,27 @@ const oneLine = (s: string, max = 60) => {
 }
 
 /** Hook mode: called by an agent with a JSON payload on stdin. Must stay silent and never fail the agent. */
-function hook(agent: string) {
+function hook(flag: string) {
+  // The plugin's hook file serves Claude Code and Codex; only Codex sets PLUGIN_ROOT.
+  const agent = flag === 'auto' ? (process.env.PLUGIN_ROOT ? 'codex' : 'claude') : flag
   try {
     let payload: { cwd?: string; hook_event_name?: string; prompt?: string } = {}
     try {
       payload = JSON.parse(readFileSync(0, 'utf8') || '{}')
     } catch {}
     const event = payload.hook_event_name
+    const dir = payload.cwd ?? process.cwd()
     // Our own plugin commands: the take back saves the state it replaces, so skip the extra checkpoint.
     if (payload.prompt?.trimStart().startsWith('/takeback:')) return
+    // With the takeback plugin enabled, its hook does the work and this one (from `init`) stands down.
+    // Both agents set CLAUDE_PLUGIN_ROOT for plugin hooks.
+    if (!process.env.CLAUDE_PLUGIN_ROOT && (agent === 'claude' || agent === 'codex') && pluginEnabled(agent)) return
+    if (tooBigToStart(dir)) return
     const label =
       event === 'UserPromptSubmit' ? `${agent} · before "${oneLine(payload.prompt ?? '')}"`
       : event === 'Stop' ? `${agent} · after turn`
       : `${agent} · ${event ?? 'hook'}`
-    save(payload.cwd ?? process.cwd(), label)
+    save(dir, label)
   } catch (e) {
     process.stderr.write(`takeback: ${(e as Error).message}\n`)
   }
@@ -93,9 +101,19 @@ function takeBack(target: string | undefined, paths: string[], dryRun: boolean) 
   console.log(dim(`   Changed your mind? takeback to ${short(saved)}`))
 }
 
+/** The usual reasons a folder has no checkpoints, each with its fix. */
+function noCheckpoints(message: string) {
+  console.error(red(`takeback: ${tilde(message)}`))
+  const mb = AUTO_LIMIT.bytes / 1e6
+  console.error(dim(`  · Set up once with \`npx takeback init\`, or keep \`npx takeback watch\` running here.
+  · Codex skips new hooks until you approve them once: /hooks in Codex, or Hooks in the ChatGPT app.
+  · Folders that aren't git repos and hold over ${AUTO_LIMIT.files.toLocaleString('en')} files or ${mb} MB start only after \`takeback save\`.`))
+  process.exitCode = 1
+}
+
 function log(limit: number) {
   const items = list(process.cwd(), limit)
-  if (!items.length) return console.log('No checkpoints yet. Run `npx takeback init` or `npx takeback watch` first.')
+  if (!items.length) return noCheckpoints(`No checkpoints for ${projectRoot(process.cwd())} yet.`)
   console.log(dim(tilde(projectRoot(process.cwd()))))
   for (const c of items) {
     const files = c.files ? dim(` · ${plural(c.files, 'file')}`) : ''
@@ -125,14 +143,31 @@ function watchFiles() {
 
 const NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' }
 
-/** The takeback Claude Code plugin brings its own hooks; installing ours too would save every checkpoint twice. */
-function claudePluginEnabled() {
+/** Whether the takeback plugin is enabled for an agent. It brings its own hooks, so ours would save everything twice. */
+function pluginEnabled(agent: Agent) {
   try {
-    const { enabledPlugins = {} } = JSON.parse(readFileSync(hookFile('claude', 'global'), 'utf8'))
-    return Object.entries(enabledPlugins).some(([id, on]) => on === true && id.startsWith('takeback@'))
+    if (agent === 'claude') {
+      const { enabledPlugins = {} } = JSON.parse(readFileSync(hookFile('claude', 'global'), 'utf8'))
+      return Object.entries(enabledPlugins).some(([id, on]) => on === true && id.startsWith('takeback@'))
+    }
+    const config = readFileSync(join(dirname(hookFile('codex', 'global')), 'config.toml'), 'utf8')
+    return /^\[plugins\."takeback@[^"]+"\]\s*\n\s*enabled\s*=\s*true/m.test(config)
   } catch {
     return false
   }
+}
+
+const codex = (...args: string[]) => spawnSync('codex', args, { encoding: 'utf8', timeout: 120_000, shell: process.platform === 'win32' })
+
+/**
+ * Codex runs a new hook only after the user approves it, and lists hooks from config as an anonymous
+ * "User config · Hook 1". Installed as a plugin, the same hooks show up under "takeback" with its logo.
+ */
+function installCodexPlugin(): boolean {
+  const marketplaces = codex('plugin', 'marketplace', 'list')
+  if (marketplaces.status !== 0) return false // no codex CLI on PATH (say, ChatGPT app only)
+  if (!/^takeback\s/m.test(marketplaces.stdout) && codex('plugin', 'marketplace', 'add', 'hichipli/takeback').status !== 0) return false
+  return codex('plugin', 'add', 'takeback@takeback').status === 0
 }
 
 /** Without explicit agents, only touch the ones installed here: a chat-app user who runs init should get no stray config. */
@@ -148,15 +183,26 @@ function init(agents: Agent[], scope: 'global' | 'project', remove: boolean, det
       console.log(dim(`· ${NAMES[agent]}: not installed, skipped`))
       continue
     }
-    if (agent === 'claude' && !remove && claudePluginEnabled()) {
-      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin`)
+    const file = hookFile(agent, scope)
+    if (remove && agent === 'codex' && pluginEnabled('codex') && codex('plugin', 'remove', 'takeback@takeback').status === 0) {
+      console.log(`${green('✓')} ${NAMES[agent]}: takeback plugin removed`)
+    }
+    if (!remove && (pluginEnabled(agent) || (agent === 'codex' && scope === 'global' && installCodexPlugin()))) {
+      const cleaned = installHooks(file, '', true) ? dim(` (removed the old hooks from ${tilde(file)})`) : ''
+      console.log(`${green('✓')} ${NAMES[agent]}: covered by the takeback plugin${cleaned}`)
+      if (agent === 'codex') {
+        console.log(yellow('  ! Codex runs new hooks only after you approve them: /hooks in Codex, or Hooks in the ChatGPT app.'))
+        console.log(yellow('    Look for the two hooks listed under takeback.'))
+      }
       continue
     }
-    const file = hookFile(agent, scope)
     const changed = installHooks(file, `${command} save --hook ${agent}`, remove)
     const state = remove ? (changed ? 'hooks removed from' : 'no hooks in') : changed ? 'checkpoint hooks added to' : 'already set up in'
-    const trust = agent === 'codex' && changed && !remove ? dim(' (Codex asks you to review new hooks once)') : ''
-    console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}${trust}`)
+    console.log(`${changed || !remove ? green('✓') : dim('·')} ${NAMES[agent]}: ${state} ${tilde(file)}`)
+    if (agent === 'codex' && !remove) {
+      console.log(yellow('  ! Codex runs new hooks only after you approve them: /hooks in Codex, or Hooks in the ChatGPT app.'))
+      console.log(yellow(`    They're listed under "User config" and run ${tilde(command.replace(/^node /, ''))}.`))
+    }
   }
   if (remove) return
   console.log(`\nDone. When an agent breaks something, run ${yellow('npx takeback')} in the project folder.`)
@@ -240,6 +286,8 @@ function main() {
 try {
   main()
 } catch (e) {
-  console.error(red(`takeback: ${(e as Error).message}`))
+  const message = (e as Error).message
+  if (message.startsWith('No checkpoints')) noCheckpoints(message)
+  else console.error(red(`takeback: ${message}`))
   process.exit(1)
 }
