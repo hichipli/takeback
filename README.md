@@ -1,21 +1,19 @@
 <div align="center">
 
-<img src="assets/logo.svg" width="88" alt="takeback">
+<img src="assets/readme/banner.png" width="880" alt="takeback: Ctrl+Z for AI coding agents. Run npx takeback.">
 
-# takeback
+**Your agent ran `rm -rf`, rewrote 40 files, or "fixed" the wrong thing.<br>
+One command puts it all back, including what it changed through Bash.**
 
-**Ctrl+Z for AI coding agents.**
-
-Your agent ran `rm -rf`, rewrote 40 files, or "fixed" the wrong thing.<br>
-One command puts it all back, including what it changed through Bash.
-
+[![npm](https://img.shields.io/npm/v/takeback?color=3fb950)](https://www.npmjs.com/package/takeback)
 [![CI](https://github.com/hichipli/takeback/actions/workflows/ci.yml/badge.svg)](https://github.com/hichipli/takeback/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/takeback)](https://www.npmjs.com/package/takeback)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Dependencies: 0](https://img.shields.io/badge/dependencies-0-3fb950)](package.json)
+[![Node](https://img.shields.io/node/v/takeback?color=3fb950)](package.json)
+[![License: MIT](https://img.shields.io/badge/license-MIT-3fb950)](LICENSE)
 
-English · [简体中文](README.zh-CN.md)
+[Quick start](#quick-start) · [Why](#why-takeback) · [How it works](#how-it-works) · [Commands](#commands) · [For agents](#your-agent-can-use-it-too) · [FAQ](#faq) · [简体中文](README.zh-CN.md)
 
-<img src="docs/demo.svg" alt="An agent deletes scripts/ through Bash, and takeback restores it with one command" width="860">
+<img src="docs/demo.svg" width="860" alt="An agent deletes scripts/ through Bash, and npx takeback restores it with one command">
 
 </div>
 
@@ -27,47 +25,52 @@ Set it up once. From then on, Claude Code and Codex save a checkpoint before eve
 npx takeback init
 ```
 
-When an agent breaks something, run this in the project folder:
+When an agent breaks something, run this in the project folder. Add `-n` to see what it would do first:
 
 ```bash
 npx takeback
 ```
 
-That's it. Add `-n` to see what it would do first.
-
-Using Codex? `init` installs the takeback plugin for it. Codex runs new hooks only after you approve them, so run `/hooks` in Codex (or open Hooks in the ChatGPT app) once and trust the two listed under takeback.
+> [!NOTE]
+> Codex runs new hooks only after you approve them. Run `/hooks` in Codex once, or open Hooks in the ChatGPT app, and trust the two listed under takeback.
 
 ## Why takeback
 
-- **It catches what built-in undo misses.** Claude Code's `/rewind` skips files changed through Bash, most subagents and other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)). The Codex CLI [dropped `/undo`](https://github.com/openai/codex/issues/9203). takeback snapshots the whole folder, whoever changed it.
-- **One setup for every project and agent.** `init` covers Claude Code and Codex wherever you run them: terminal, desktop app or IDE. `takeback watch` covers everything else.
+<img src="assets/readme/compare.png" width="880" alt="Claude Code's /rewind misses files changed through Bash, subagents and other sessions; git only has what was committed; takeback covers all of them and works with any agent.">
+
+- **It catches what built-in undo misses.** Claude Code's `/rewind` skips files changed through Bash, most subagents and other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)), and the Codex CLI [dropped `/undo`](https://github.com/openai/codex/issues/9203).
+- **One setup for every project and agent.** `init` covers Claude Code and Codex in the terminal, desktop app or IDE. [`takeback watch`](#where-it-works) covers everything else.
 - **It can't make things worse.** Every take back saves where you are first. Your `.git` is never touched, and files your `.gitignore` protects, like `.env`, are never deleted.
-- **Your agent can use it too.** Ask it to go back to an earlier version and it reads the exact files from a checkpoint instead of rebuilding them from memory. [More below](#your-agent-can-use-it-too).
-- **Small enough to read.** Under 900 lines of TypeScript, zero dependencies, nothing leaves your machine. [Read it](src/) before you run it.
+- **Small enough to read.** About 900 lines in [two files](#read-the-code), zero dependencies, nothing leaves your machine.
 
-|  | takeback | Claude Code `/rewind` | git |
-| --- | --- | --- | --- |
-| Restores files changed through Bash (`rm`, `mv`, codegen) | ✓ | ✗ | Only what you committed |
-| Works with every agent | ✓ | Claude Code only | ✓ |
-| Nothing to remember before each prompt | ✓ | ✓ | Commit first |
+## How it works
 
-## Using it
+<img src="assets/readme/how.png" width="880" alt="A checkpoint is saved when you send a prompt and when the turn ends. npx takeback puts every file back as it was before the prompt.">
 
-Commands are shown without `npx`; add it if you haven't installed takeback globally.
+- Two hooks per agent, one before every prompt and one after every turn. The plugins register them in [`hooks/hooks.json`](hooks/hooks.json); for Claude Code without the plugin, `init` writes the same two into `~/.claude/settings.json`. Each takes about 0.1 s.
+- Checkpoints are commits in a separate git repository under `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo.
+- It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`.
+- Hooks don't start on a folder that isn't a git repo and holds more than 5,000 files or 500 MB, such as `~/Downloads`. Run `takeback save` there to start anyway.
+- Checkpoints older than 30 days are dropped automatically, the same retention Claude Code uses for its own.
+- No daemon, no account, no telemetry.
+
+## Commands
+
+Shown without `npx`; add it if you haven't installed takeback globally. The plugin commands link to what they tell the agent.
 
 | You want to | Terminal | Claude Code plugin |
 | --- | --- | --- |
-| Undo the agent's last turn | `takeback` | `/takeback:undo` |
+| Undo the agent's last turn | `takeback` | [`/takeback:undo`](claude-skills/undo/SKILL.md) |
 | See what that would change first | `takeback -n` | `/takeback:undo -n` |
 | Go back one more turn | `takeback` again | `/takeback:undo` again |
 | Undo the last turn for one file only | `takeback src/app.ts` | `/takeback:undo src/app.ts` |
-| See every checkpoint | `takeback log` | `/takeback:log` |
-| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | `/takeback:to 3f9c2a1` |
-| See the last turn as a patch | `takeback diff` | `/takeback:diff` |
-| See a file as it was at a checkpoint | `takeback show 3f9c2a1 src/app.ts` | Ask Claude |
+| See every checkpoint | `takeback log` | [`/takeback:log`](claude-skills/log/SKILL.md) |
+| Jump to any checkpoint, or redo | `takeback to 3f9c2a1` | [`/takeback:to 3f9c2a1`](claude-skills/to/SKILL.md) |
+| See the last turn as a patch | `takeback diff` | [`/takeback:diff`](claude-skills/diff/SKILL.md) |
+| See a file as it was at a checkpoint | `takeback show 3f9c2a1 src/app.ts` | [Ask Claude](claude-skills/checkpoints/SKILL.md) |
 | Save a checkpoint by hand | `takeback save "before the refactor"` | |
 
-Every take back prints how to undo it, so you can't lose work by going back too far.
+Every take back prints how to undo it, so going back too far never loses work.
 
 ```console
 $ takeback log
@@ -76,9 +79,11 @@ $ takeback log
   966e3c5  9 minutes ago   claude · after "add a release script" · 2 files
 ```
 
-### Your agent can use it too
+## Your agent can use it too
 
-"Go back to the version from before" is hard for an agent. In a long conversation its memory of earlier files gets summarized, and git only has what was committed. Checkpoints hold every turn exactly, and an agent can read them like you do:
+<img src="assets/readme/agents.png" width="880" alt="Asked what app.js looked like before its last change, Codex runs takeback log and takeback show and reads the old file from a checkpoint.">
+
+"Go back to the version from before" is hard for an agent: in a long conversation its memory of earlier files gets summarized, and git only has what was committed. Checkpoints hold every turn exactly, and an agent reads them the way you do:
 
 ```bash
 takeback log                        # which turn was which
@@ -86,23 +91,49 @@ takeback show 3f9c2a1 src/app.ts    # a file exactly as it was
 takeback diff 3f9c2a1               # everything that changed since
 ```
 
-With the Claude Code or Codex plugin, the agent knows to look there on its own, and restores only when you ask. Reading needs no write access, so it works inside Codex's sandbox too. Any other agent can run the same commands when you tell it to.
+With the plugins, the agent looks there on its own and restores only when you ask: see the skill for [Claude Code](claude-skills/checkpoints/SKILL.md) and for [Codex](codex-skills/checkpoints/SKILL.md). Reading needs no write access, so it works inside Codex's sandbox too. Any other agent can run the same commands when you tell it to.
 
-### Plugins
+## Where it works
 
-takeback is also a plugin for Claude Code and for Codex, so each agent lists its hooks by name.
+takeback protects the files on your computer that coding agents change.
 
-**Claude Code.** Prefer slash commands? Inside Claude Code:
+| Where you run the agent | Setup |
+| --- | --- |
+| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`, or the [plugin](#plugins) |
+| Codex in the terminal or the ChatGPT desktop app | `npx takeback init` installs the [plugin](#plugins). Approve its two hooks once with `/hooks`; until then Codex skips them. |
+| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
+| Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
+| Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
+
+## Plugins
+
+takeback is also a plugin for Claude Code and for Codex, so each agent lists its hooks by name. Both run takeback's TypeScript source directly and need Node 22.18 or newer.
+
+**Claude Code.** Install it inside Claude Code to get the same checkpoints plus the [slash commands](#commands), and Claude sees what was taken back:
 
 ```text
 /plugin install takeback --marketplace hichipli/takeback
 ```
 
-On Claude Code older than 2.1.275, run `/plugin marketplace add hichipli/takeback` first, then `/plugin install takeback@takeback`.
+If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
 
-You get the same automatic checkpoints plus `/takeback:undo`, `/takeback:to`, `/takeback:diff` and `/takeback:log`, and Claude sees what was taken back. Claude also learns to read earlier versions from checkpoints when you ask for one. If you also ran `npx takeback init`, the plugin takes over for Claude Code and the hooks from `init` stand down.
+<details>
+<summary>On Claude Code older than 2.1.275</summary>
 
-**Codex.** `npx takeback init` installs the plugin for you when the `codex` command is available. To install it yourself:
+```text
+/plugin marketplace add hichipli/takeback
+```
+
+```text
+/plugin install takeback@takeback
+```
+
+</details>
+
+**Codex.** `npx takeback init` installs the plugin when the `codex` command is available. Then approve its two hooks once, in `/hooks` or the ChatGPT app's Hooks page, where they're listed under takeback.
+
+<details>
+<summary>Install the Codex plugin yourself</summary>
 
 ```bash
 codex plugin marketplace add hichipli/takeback
@@ -112,48 +143,78 @@ codex plugin marketplace add hichipli/takeback
 codex plugin add takeback@takeback
 ```
 
-Then approve its two hooks once, in `/hooks` or the ChatGPT app's Hooks page, where they're listed under takeback. The plugin also teaches Codex to read earlier versions from checkpoints when you ask for one.
-
-Both plugins run takeback's TypeScript source directly, so they need Node 22.18 or newer.
-
-## Where it works
-
-takeback protects the files on your computer that coding agents change.
-
-| Where you run the agent | Setup |
-| --- | --- |
-| Claude Code in the terminal, the Claude desktop app (Code tab), or VS Code / JetBrains | `npx takeback init`, or the [plugin](#plugins) |
-| Codex in the terminal or the ChatGPT desktop app | `npx takeback init` installs the takeback plugin. Approve its two hooks once with `/hooks`; until then Codex skips them. |
-| Cursor, Windsurf, Gemini CLI, OpenCode, Aider, Cline, your own scripts: anything that edits files in a folder | Keep `npx takeback watch` running in that folder. It saves a checkpoint 1.5 s after files stop changing. |
-| Claude Code on the web, Codex cloud tasks and other cloud agents | Not covered: those files live on the provider's machines, not yours. |
-| Plain chat in ChatGPT, Claude and other apps | Not needed: chat doesn't change files on your computer. If you run `init` anyway, it finds no coding agent and changes nothing. |
-
-## How it works
-
-- `init` sets up two hooks per agent: one before every prompt, one after every turn. For Codex it installs the takeback plugin, so Codex names them when it asks you to approve them. For Claude Code it adds them to `~/.claude/settings.json`, running a copy of takeback in `~/.takeback/app`. Either way a hook takes about 0.1 s.
-- Checkpoints go to a separate git repository in `~/.takeback/`. Your project's `.git`, branches, index and stash are never touched, and the project doesn't need to be a git repo at all.
-- It follows your `.gitignore` and always skips `node_modules`, `.venv` and `__pycache__`.
-- Hooks don't start on a folder that isn't a git repo and holds more than 5,000 files or 500 MB, such as `~/Downloads`. Run `takeback save` there to start anyway.
-- Checkpoints older than 30 days are dropped automatically, the same retention Claude Code uses for its own.
-- No daemon, no account, no telemetry.
+</details>
 
 ## FAQ
 
-**Does takeback replace git?** No. Commit what you want to keep. takeback is the safety net for the minutes between commits, when an agent is changing many files at once.
+<details>
+<summary><b>Does takeback replace git?</b></summary>
 
-**What if the agent already committed?** takeback puts the files back and leaves git history alone, so they show up as uncommitted changes. It says so whenever the branch or commit moved since the checkpoint. To undo the commit itself, use `git revert` or `git reset`.
+No. Commit what you want to keep. takeback is the safety net for the minutes between commits, when an agent is changing many files at once.
 
-**What can't it take back?** Files your `.gitignore` excludes (such as `.env` or `dist/`), anything outside the project folder, and side effects like database writes, package installs or `git push`.
+</details>
 
-**Does it slow my agent down?** The first checkpoint of a project stores a compressed copy of it, which takes a few seconds on large projects (3.6 s for an 850-file app). After that each hook call takes about 0.1 s.
+<details>
+<summary><b>What if the agent already committed?</b></summary>
 
-**How much disk does it use?** Git stores each version of a file once, compressed. Old checkpoints go after 30 days. To free space now, run `takeback prune`; `takeback prune --keep 7d` keeps only the last week. Prune also deletes checkpoints of folders that no longer exist.
+takeback puts the files back and leaves git history alone, so they show up as uncommitted changes. It says so whenever the branch or commit moved since the checkpoint. To undo the commit itself, use `git revert` or `git reset`.
 
-**Why does takeback say there are no checkpoints?** Either setup hasn't run (`npx takeback init`), Codex hasn't been allowed to run the hooks yet (`/hooks` in Codex), or the folder is a big one that isn't a git repo (`takeback save` starts it). takeback prints these hints itself.
+</details>
 
-**How do I update?** `npx takeback@latest init` updates everything, the Claude Code and Codex plugins included. If the `claude` or `codex` command isn't on your PATH, it tells you how to update that plugin from the agent instead. If an update changes the hooks, Codex asks you to approve them again.
+<details>
+<summary><b>What can't it take back?</b></summary>
 
-**How do I uninstall?** `npx takeback init --remove` removes the hooks and the Codex plugin. Remove the Claude Code plugin with `/plugin uninstall takeback@takeback`, then delete `~/.takeback`.
+Files your `.gitignore` excludes (such as `.env` or `dist/`), anything outside the project folder, and side effects like database writes, package installs or `git push`.
+
+</details>
+
+<details>
+<summary><b>Does it slow my agent down?</b></summary>
+
+The first checkpoint of a project stores a compressed copy of it, which takes a few seconds on large projects (3.6 s for an 850-file app). After that each hook call takes about 0.1 s.
+
+</details>
+
+<details>
+<summary><b>How much disk does it use?</b></summary>
+
+Git stores each version of a file once, compressed. Old checkpoints go after 30 days. To free space now, run `takeback prune`; `takeback prune --keep 7d` keeps only the last week. Prune also deletes checkpoints of folders that no longer exist.
+
+</details>
+
+<details>
+<summary><b>Why does takeback say there are no checkpoints?</b></summary>
+
+Either setup hasn't run (`npx takeback init`), Codex hasn't been allowed to run the hooks yet (`/hooks` in Codex), or the folder is a big one that isn't a git repo (`takeback save` starts it). takeback prints these hints itself.
+
+</details>
+
+<details>
+<summary><b>How do I update?</b></summary>
+
+`npx takeback@latest init` updates everything, the Claude Code and Codex plugins included. If the `claude` or `codex` command isn't on your PATH, it tells you how to update that plugin from the agent instead. If an update changes the hooks, Codex asks you to approve them again.
+
+</details>
+
+<details>
+<summary><b>How do I uninstall?</b></summary>
+
+`npx takeback init --remove` removes the hooks and the Codex plugin. Remove the Claude Code plugin with `/plugin uninstall takeback@takeback`, then delete `~/.takeback`.
+
+</details>
+
+## Read the code
+
+Read it before you run it. There's not much:
+
+| File | What it does |
+| --- | --- |
+| [`src/takeback.ts`](src/takeback.ts) | The checkpoint store: save, take back, diff, show and prune |
+| [`src/cli.ts`](src/cli.ts) | Commands, the hook entry point and `init` |
+| [`hooks/hooks.json`](hooks/hooks.json) | The two hooks both plugins register |
+| [`claude-skills/`](claude-skills/) | The Claude Code slash commands and the skill for reading checkpoints |
+| [`codex-skills/`](codex-skills/) | The same skill for Codex |
+| [`test/takeback.test.ts`](test/takeback.test.ts) | 24 tests, run on Linux, macOS and Windows |
 
 ## Roadmap
 
