@@ -29,6 +29,8 @@ npx takeback
 
 就这么简单。想先看看会改什么，加 `-n`。
 
+用 Codex？它会跳过还没批准的新钩子，所以请打开一次 Codex，运行 `/hooks` 批准。
+
 ## 为什么用 takeback
 
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)）。Codex CLI [去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。takeback 给整个文件夹拍快照，不管是谁改的。
@@ -64,11 +66,12 @@ npx takeback
 更喜欢斜杠命令？在 Claude Code 里输入：
 
 ```text
-/plugin marketplace add hichipli/takeback
-/plugin install takeback@takeback
+/plugin install takeback --marketplace hichipli/takeback
 ```
 
-同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。需要 Node 22.18 或更新版本。如果你也运行了 `npx takeback init`，它会把 Claude Code 留给插件处理。
+Claude Code 低于 2.1.275 的话，先运行 `/plugin marketplace add hichipli/takeback`，再运行 `/plugin install takeback@takeback`。
+
+同样会自动存检查点，另外多了 `/takeback:undo`、`/takeback:to` 和 `/takeback:log`，而且 Claude 能看到恢复了什么。需要 Node 22.18 或更新版本。如果你之前运行过 `npx takeback init`，Claude Code 这边会交给插件，`init` 装的钩子自动让位。
 
 ## 在哪里能用
 
@@ -77,7 +80,7 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 | 你在哪里用智能体 | 设置 |
 | --- | --- |
 | Claude Code：终端、Claude 桌面 App（Code 标签页）、VS Code / JetBrains 插件 | `npx takeback init`，或者装[插件](#claude-code-插件) |
-| 终端或 ChatGPT 桌面 App 里的 Codex | `npx takeback init`，然后在 Codex 提示时批准一次新钩子 |
+| 终端或 ChatGPT 桌面 App 里的 Codex | `npx takeback init`，然后在 Codex 里用 `/hooks` 批准一次新钩子。批准之前 Codex 会跳过它们 |
 | Cursor、Windsurf、Gemini CLI、OpenCode、Aider、Cline、你自己的脚本：任何会改文件夹里文件的工具 | 在那个文件夹里保持运行 `npx takeback watch`，文件停止变化 1.5 秒后自动存检查点 |
 | 网页版 Claude Code、Codex 云端任务等云端智能体 | 不适用：文件在服务商的机器上，不在你的电脑上 |
 | ChatGPT、Claude 等应用里的普通聊天 | 不需要：聊天不会改你电脑上的文件。就算运行了 `init`，它也找不到编程智能体，什么都不会改 |
@@ -87,6 +90,7 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 - `init` 给 Claude Code 和 Codex 加两个钩子：每次提示词之前一个，每轮结束之后一个。它把 takeback 复制到 `~/.takeback/app`，所以每次钩子只要约 0.1 秒，也不依赖 npm。
 - 检查点存放在 `~/.takeback/` 下一个独立的 git 仓库里。项目自己的 `.git`、分支、暂存区和 stash 都不会被碰，项目本身也不需要是 git 仓库。
 - 遵守你的 `.gitignore`，并始终跳过 `node_modules`、`.venv`、`__pycache__`。
+- 不是 git 仓库、并且超过 5,000 个文件或 500 MB 的文件夹（比如 `~/Downloads`），钩子不会自动开始存检查点。想在这种文件夹里用，运行一次 `takeback save` 即可。
 - 超过 30 天的检查点会自动清理，和 Claude Code 自己的保留期一样。
 - 没有后台进程，没有账号，没有遥测。
 
@@ -100,7 +104,9 @@ takeback 保护的是编程智能体在你电脑上改动的文件。
 
 **占多少磁盘？** git 对每个文件版本只存一份并压缩。旧检查点 30 天后自动清理。想马上释放空间就运行 `takeback prune`，`takeback prune --keep 7d` 只保留最近一周。prune 也会删除已经不存在的文件夹的检查点。
 
-**怎么更新？** `npx takeback@latest init`。插件用户通过 `/plugin` 更新。
+**为什么 takeback 说没有检查点？** 可能是还没设置（`npx takeback init`），可能是 Codex 还没批准钩子（在 Codex 里运行 `/hooks`），也可能这是一个不是 git 仓库的大文件夹（运行 `takeback save` 开始）。takeback 自己也会打印这些提示。
+
+**怎么更新？** `npx takeback@latest init`。插件用户运行 `claude plugin update takeback@takeback`。
 
 **怎么卸载？** 运行 `npx takeback init --remove`（或者 `/plugin uninstall takeback@takeback`），再 `rm -rf ~/.takeback`。
 
