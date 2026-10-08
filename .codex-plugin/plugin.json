@@ -1,6 +1,6 @@
 {
   "name": "takeback",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Ctrl+Z for AI coding agents. Saves a checkpoint of the project before every prompt and after every turn, so `npx takeback` can put files back, including ones changed by shell commands.",
   "author": {
     "name": "Hongming (Chip) Li",
