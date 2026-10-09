@@ -49,7 +49,7 @@ npx takeback
 <img src="assets/readme/zh-CN/compare.png" width="880" alt="Claude Code 的 /rewind 不管 Bash、子智能体和其他会话改动的文件；git 只有提交过的内容；takeback 全都能恢复，并且适用于任何智能体。">
 
 - **补上自带撤销的漏洞。** Claude Code 的 `/rewind` 不管通过 Bash 改动的文件、大多数子智能体和其他会话的修改（[官方文档](https://code.claude.com/docs/en/checkpointing#limitations)），Codex CLI 则[去掉了 `/undo`](https://github.com/openai/codex/issues/9203)。
-- **不需要会用 git。** 检查点存在独立的地方，项目本身也不需要是 git 仓库。让智能体退回去，它会从检查点恢复。
+- **不需要会用 git。** 检查点存在独立的地方，项目本身也不需要是 git 仓库。让智能体退回去，它会从检查点恢复。ChatGPT App 里的 Undo 按钮和 Codex 的审查面板都要求是 git 仓库。
 - **智能体拿到的是真实的历史。** 连着改了很多轮又都没提交时，你让智能体"改回原来那版"，它只能凭记忆重写，细节常常对不上。有了检查点，它能读出原样的文件。[详见下文](#智能体也能用)。
 - **一次设置，所有项目、所有智能体。** `init` 覆盖终端、桌面 App 和 IDE 里的 Claude Code 和 Codex。其他工具用 [`takeback watch`](#在哪里能用)。
 - **退回去之后也能再回来。** 每次撤销前都先保存当前状态。从不碰你的 `.git`，也从不删除 `.gitignore` 保护的文件，比如 `.env`。
@@ -177,7 +177,7 @@ takeback 只恢复文件，不动 git 历史，所以恢复后的文件会显示
 <summary><b>哪些东西撤销不了？</b></summary>
 
 - `.gitignore` 排除的文件，比如 `.env`、`dist/`。
-- 项目文件夹以外的东西，以及数据库写入、安装依赖、`git push` 这类副作用。
+- 智能体工作的文件夹以外的东西（哪怕它用完整路径去改了那里的文件），以及数据库写入、安装依赖、`git push` 这类副作用。在 ChatGPT App 里，ChatGPT 项目中的对话有它自己的文件夹，所以请在你想改的那个文件夹里开始对话。
 - 项目里嵌套的 git 仓库（比如 submodule）里的文件。检查点只记下它的提交，所以撤销时会提示它的名字，不会动它。
 - 空文件夹，因为 git 不保存空文件夹。
 - 在 macOS 和 Windows 上，只改了字母大小写的重命名。内容会恢复，名字保持新的大小写。

@@ -423,6 +423,12 @@ test('the checkpoint after a turn is labeled with that turn\'s prompt', () => {
   fire({ hook_event_name: 'Stop' })
   assert.equal(list(dir)[0].label, 'claude · after "delete the changelog"')
 
+  // Context the app puts ahead of the prompt stays out of the label.
+  fire({ hook_event_name: 'UserPromptSubmit', prompt: '<in-app-browser-context source="ambient-ui-state">\nA page about cats\n</in-app-browser-context>\nbring the changelog back' })
+  write(dir, 'CHANGELOG.md', 'restored')
+  fire({ hook_event_name: 'Stop' })
+  assert.equal(list(dir)[0].label, 'claude · after "bring the changelog back"')
+
   write(dir, 'CHANGELOG.md', 'back') // a turn whose prompt we never saw
   fire({ hook_event_name: 'Stop' })
   assert.equal(list(dir)[0].label, 'claude · after turn', 'a prompt labels only its own turn')

@@ -49,7 +49,7 @@ Or skip the command and tell the agent: "go back to before your last change". `i
 <img src="assets/readme/compare.png" width="880" alt="Claude Code's /rewind misses files changed through Bash, subagents and other sessions; git only has what was committed; takeback covers all of them and works with any agent.">
 
 - **It catches what built-in undo misses.** Claude Code's `/rewind` skips files changed through Bash, most subagents and other sessions ([docs](https://code.claude.com/docs/en/checkpointing#limitations)), and the Codex CLI [dropped `/undo`](https://github.com/openai/codex/issues/9203).
-- **You don't need to know git.** Checkpoints live in their own store, and the project doesn't have to be a git repo. Ask the agent to go back and it restores from them.
+- **You don't need to know git.** Checkpoints live in their own store, and the project doesn't have to be a git repo. Ask the agent to go back and it restores from them. The Undo button in the ChatGPT app and Codex's review pane both need a git repo.
 - **Your agent gets the real history.** After many turns nobody committed, an agent asked for "the old version" rebuilds it from memory and gets parts wrong. With checkpoints it reads the exact files. [More below](#your-agent-can-use-it-too).
 - **One setup for every project and agent.** `init` covers Claude Code and Codex in the terminal, desktop app or IDE. [`takeback watch`](#where-it-works) covers everything else.
 - **Going back can always be undone.** Every take back saves where you are first. Your `.git` is never touched, and files your `.gitignore` protects, like `.env`, are never deleted.
@@ -177,7 +177,7 @@ takeback puts the files back and leaves git history alone, so they show up as un
 <summary><b>What can't it take back?</b></summary>
 
 - Files your `.gitignore` excludes, such as `.env` or `dist/`.
-- Anything outside the project folder, and side effects like database writes, package installs or `git push`.
+- Anything outside the folder the agent works in, even files it edits there by full path, and side effects like database writes, package installs or `git push`. In the ChatGPT app, a chat inside a ChatGPT project works in a folder of its own, so start the chat in the folder you want to change.
 - Files inside a git repo nested in the project, such as a submodule. Checkpoints hold only its commit, so a take back names it and leaves it alone.
 - Empty folders, which git doesn't store.
 - On macOS and Windows, a rename that only changes letter case. The content comes back; the name keeps its new case.
