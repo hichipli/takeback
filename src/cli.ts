@@ -53,6 +53,9 @@ const oneLine = (s: string, max = 60) => {
   const t = s.replace(/\s+/g, ' ').trim()
   return t.length > max ? `${t.slice(0, max - 1)}…` : t
 }
+// Apps put context blocks ahead of what you typed, like <in-app-browser-context …>…</in-app-browser-context>.
+// Labels use what you typed; a prompt that is only such blocks keeps its text.
+const typed = (prompt: string) => prompt.replace(/^\s*(?:<([\w-]+)[^>]*>[\s\S]*?<\/\1>\s*)+/, '') || prompt
 
 /** Hook mode: called by an agent with a JSON payload on stdin. Must stay silent and never fail the agent. */
 function hook(flag: string) {
@@ -72,7 +75,7 @@ function hook(flag: string) {
     if (!process.env.CLAUDE_PLUGIN_ROOT && (agent === 'claude' || agent === 'codex') && pluginEnabled(agent)) return
     if (tooBigToStart(dir)) return
     const session = payload.session_id
-    const prompt = oneLine(payload.prompt ?? '')
+    const prompt = oneLine(typed(payload.prompt ?? ''))
     if (event === 'UserPromptSubmit') {
       save(dir, `${agent} · before "${prompt}"`)
       if (session) rememberPrompt(dir, session, prompt)

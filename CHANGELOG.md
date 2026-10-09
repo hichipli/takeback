@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.8 (2026-10-09)
+
+- Checkpoints are labeled with what you typed. The ChatGPT app puts context such as `<in-app-browser-context …>` ahead of the prompt, which used to become the label.
+- The README says which folder takeback saves: the one the agent works in. In the ChatGPT app, a chat inside a ChatGPT project works in a folder of its own, so files it edits elsewhere by full path aren't in checkpoints.
+
 ## 0.4.7 (2026-10-08)
 
 - `npx takeback init` installs the Claude Code plugin too when the `claude` command is available, as it already did for Codex. So after one command you can tell either agent "go back to before your last change", and it restores from checkpoints. Without the `claude` command (say, only the desktop app), `init` adds hooks as before.
